@@ -23,3 +23,5 @@ hs_err_pid*
 
 *APDescription.txt
 *MTPs-Main-Container.txt
+/src/nbproject/private/
+/project/nbproject/private/
