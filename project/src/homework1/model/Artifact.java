@@ -5,26 +5,29 @@
  */
 package homework1.model;
 
+import java.io.Serializable;
 import java.util.GregorianCalendar;
 
 /**
  *
  * @author Rémi Domingues <remidomingues@live.fr>
  */
-public class Artifact {
+public class Artifact implements Serializable {
     int id;
     String name;
     String author;
     GregorianCalendar createdAt;
     String country;
+    ArtifactGenre genre;
     ArtifactCategory category;
 
-    public Artifact(int id, String name, String author, GregorianCalendar createdAt, String country, ArtifactCategory category) {
+    public Artifact(int id, String name, String author, GregorianCalendar createdAt, String country, ArtifactGenre genre, ArtifactCategory category) {
         this.id = id;
         this.name = name;
         this.author = author;
         this.createdAt = createdAt;
         this.country = country;
+        this.genre = genre;
         this.category = category;
     }
 
@@ -48,9 +51,11 @@ public class Artifact {
         return country;
     }
 
+    public ArtifactGenre getGenre() {
+        return genre;
+    }    
+
     public ArtifactCategory getCategory() {
         return category;
-    }
-    
-    
+    }    
 }

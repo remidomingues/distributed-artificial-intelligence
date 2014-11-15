@@ -10,5 +10,5 @@ package homework1.model;
  * @author Rémi Domingues <remidomingues@live.fr>
  */
 public enum ArtifactGenre {
-    Painting, Sculpture, Book, Misc;
+    Painting, Sculpture, Book, Game, Misc;
 }
