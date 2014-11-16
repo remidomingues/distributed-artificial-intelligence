@@ -35,10 +35,12 @@ import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
 import jade.domain.FIPAException;
 import jade.lang.acl.ACLMessage;
+import jade.lang.acl.UnreadableException;
 import jade.util.Logger;
 import java.io.IOException;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
@@ -75,39 +77,24 @@ public class CuratorAgent extends Agent {
                 ACLMessage reply = msg.createReply();
 
                 if(msg.getPerformative() == ACLMessage.REQUEST){
-                    /*
-                    //STUFF TO ADD TO MANAGE THE ARTIFACT SELECTION
-                    List<ArtifactDescription> descriptions = null;
+                    Object content = null;
+                    
                     try {
-                        descriptions = (List<ArtifactDescription>) msg.getContentObject();
-                    } catch(Exception e) {
+                        content = msg.getContentObject();
+                    } catch (UnreadableException ex) {
+                        java.util.logging.Logger.getLogger(CuratorAgent.class.getName()).log(Level.SEVERE, "Could not read object content from message", ex);
                     }
                     
-                    if(descriptions != null){
-                        myLogger.log(Logger.INFO, "Agent "+getLocalName()+" - Received DET request from "+msg.getSender().getLocalName());
-                        reply.setPerformative(ACLMessage.INFORM);
-                        try {
-                            reply.setContentObject(artifacts.get(id));
-                        } catch (IOException ex) {
-                            java.util.logging.Logger.getLogger(CuratorAgent.class.getName()).log(Level.SEVERE, "Could not serialize artifact "+id, ex);
-                            reply.setPerformative(ACLMessage.FAILURE);
-                            reply.setContent("(Internal error)");
-                        }
-                    */
-                    String content = msg.getContent();
-                    try {
-                        id = Integer.parseInt(content.split(" ")[1]);
-                    } catch(Exception e) {
-                    }
-                    if((content != null) && (content.indexOf("DET") != -1) && id != null){
-                        myLogger.log(Logger.INFO, "Agent "+getLocalName()+" - Received DET request from "+msg.getSender().getLocalName());
-                        reply.setPerformative(ACLMessage.INFORM);
-                        try {
-                            reply.setContentObject(artifacts.get(id));
-                        } catch (IOException ex) {
-                            java.util.logging.Logger.getLogger(CuratorAgent.class.getName()).log(Level.SEVERE, "Could not serialize artifact "+id, ex);
-                            reply.setPerformative(ACLMessage.FAILURE);
-                            reply.setContent("(Internal error)");
+                    if(content != null && content instanceof AgentMessage){
+                        AgentMessage message = (AgentMessage)content;
+                        if(message.getType().equals("DET")){
+                            this.answerArtifactDetailsMessage(reply, message, msg.getSender().getLocalName());
+                        } else if(message.getType().equals("GET")){
+                            this.answerArtifactSelectionMessage(reply, message, msg.getSender().getLocalName());
+                        } else{
+                            myLogger.log(Logger.INFO, "Agent "+getLocalName()+" - Unexpected request type ["+message.getType()+"] received");
+                            reply.setPerformative(ACLMessage.REFUSE);
+                            reply.setContent("(UnexpectedType ("+message.getType()+"))");
                         }
                     }
                     else{
@@ -126,6 +113,57 @@ public class CuratorAgent extends Agent {
             }
             else {
                 block();
+            }
+        }
+            
+        private void answerArtifactSelectionMessage(ACLMessage reply, AgentMessage request, String sender) {
+            myLogger.log(Logger.INFO, "Agent "+getLocalName()+" - Received DET request from "+sender);
+            reply.setPerformative(ACLMessage.INFORM);
+
+            //Parse message
+            List<ArtifactDescription> descriptions = null;
+            try {
+                descriptions = (List<ArtifactDescription>)request.getContent();
+            } catch(Exception e) {
+                myLogger.log(Logger.INFO, "Agent {0} - Unexpected request content [{1}] received", new Object[]{getLocalName(), request.getContent()});
+                reply.setPerformative(ACLMessage.REFUSE);
+                reply.setContent("(UnexpectedContent ("+request.getContent()+"))");
+            }
+
+            //Build response
+            try {
+                List<Artifact> artifacts = new LinkedList<Artifact>();
+                
+                reply.setContentObject(new AgentMessage("GET", artifacts));
+                
+            } catch (IOException ex) {
+                java.util.logging.Logger.getLogger(CuratorAgent.class.getName()).log(Level.SEVERE, "Could not serialize artifact "+id, ex);
+                reply.setPerformative(ACLMessage.FAILURE);
+                reply.setContent("(Internal error)");
+            }
+        }
+        
+        private void answerArtifactDetailsMessage(ACLMessage reply, AgentMessage request, String sender) {
+            myLogger.log(Logger.INFO, "Agent "+getLocalName()+" - Received DET request from "+sender);
+            reply.setPerformative(ACLMessage.INFORM);
+
+            //Parse message
+            Integer id = null;
+            try {
+                id = Integer.parseInt((String)request.getContent());
+            } catch(Exception e) {
+                myLogger.log(Logger.INFO, "Agent {0} - Unexpected request content [{1}] received", new Object[]{getLocalName(), request.getContent()});
+                reply.setPerformative(ACLMessage.REFUSE);
+                reply.setContent("(UnexpectedContent ("+request.getContent()+"))");
+            }
+
+            //Build response
+            try {
+                reply.setContentObject(new AgentMessage("DET", artifacts.get(id)));
+            } catch (IOException ex) {
+                java.util.logging.Logger.getLogger(CuratorAgent.class.getName()).log(Level.SEVERE, "Could not serialize artifact "+id, ex);
+                reply.setPerformative(ACLMessage.FAILURE);
+                reply.setContent("(Internal error)");
             }
         }
     }
