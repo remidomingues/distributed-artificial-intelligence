@@ -24,31 +24,25 @@
  */
 package homework1;
 
-import homework1.AgentMessage;
-
-import homework1.model.Artifact;
 import homework1.model.ArtifactCategory;
 import homework1.model.ArtifactDescription;
 import homework1.model.ArtifactGenre;
-import homework1.model.Gender;
 import homework1.model.User;
-import homework1.model.Occupation;
 import jade.core.AID;
 
 import jade.core.Agent;
 import jade.core.behaviours.CyclicBehaviour;
 import jade.core.behaviours.ParallelBehaviour;
-import jade.core.behaviours.TickerBehaviour;
 import jade.domain.DFService;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
 import jade.domain.FIPAException;
 import jade.lang.acl.ACLMessage;
-import jade.lang.acl.UnreadableException;
 import jade.util.Logger;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Random;
 
 
 public class TourGuideAgent extends Agent {
@@ -60,9 +54,14 @@ public class TourGuideAgent extends Agent {
     }
 
     private class TourBuilderBehaviour extends CyclicBehaviour {
+        private static final int TOUR_SIZE = 5;
 
         public TourBuilderBehaviour(Agent a) {
             super(a);
+        }
+
+        private Object pickRandom(Object[] objects, Random random) {
+            return objects[new Random().nextInt(objects.length)];
         }
 
         public void action() {
@@ -93,11 +92,14 @@ public class TourGuideAgent extends Agent {
                 
                 myLogger.log(Logger.INFO, "Agent {0} - Received get-tour request from {1}", new Object[]{getLocalName(), msg.getSender().getLocalName()});
                 
-                List<ArtifactDescription> descriptions = new LinkedList<ArtifactDescription>();
-                for(ArtifactCategory categ : user.getInterests()) {
-                    for(ArtifactGenre genre : ArtifactGenre.values()) {
-                        descriptions.add(new ArtifactDescription(categ, genre));
-                    }
+                List<ArtifactDescription> descriptions = new LinkedList<>();
+                ArtifactGenre[] genres = ArtifactGenre.values();
+                Object[] interests = user.getInterests().toArray();
+                Random random = new Random();
+                for(int i = 0; i < TOUR_SIZE; i++) {
+                    ArtifactCategory categ = (ArtifactCategory) pickRandom(interests, random);
+                    ArtifactGenre genre = (ArtifactGenre) pickRandom(genres, random);
+                    descriptions.add(new ArtifactDescription(categ, genre));    
                 }
 
                 //Send artifacts ID request to CuratorAgent

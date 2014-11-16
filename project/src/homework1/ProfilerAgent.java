@@ -24,8 +24,6 @@
  */
 package homework1;
 
-import homework1.AgentMessage;
-
 import homework1.model.Artifact;
 import homework1.model.ArtifactCategory;
 import homework1.model.Gender;
@@ -111,9 +109,11 @@ public class ProfilerAgent extends Agent {
 
             // Creating a sequential behaviour (visiting the artifacts one after the other)
             SequentialBehaviour visitingBehaviour = new SequentialBehaviour(myAgent);
-            for(int i=0; i < artifactIds.size(); i++) {
-                visitingBehaviour.addSubBehaviour(new VisitingArtifactBehaviour(myAgent, artifactIds.get(i)));
+            for(Integer artifactId : artifactIds) {
+                visitingBehaviour.addSubBehaviour(new VisitingArtifactBehaviour(myAgent, artifactId));
             }
+            myLogger.log(Logger.INFO, "Number of artifacts to visit: " + artifactIds.size());
+
             // ... and a final waker behaviour to request a new tour after a while
             visitingBehaviour.addSubBehaviour(new NewTourBehaviour(myAgent));
             
@@ -129,6 +129,7 @@ public class ProfilerAgent extends Agent {
         }
 
         public void onWake() {
+            myLogger.log(Logger.INFO, "!! Finished current tour, requesting a new tour");
             myAgent.addBehaviour(new RequestVirtualTourBehaviour(myAgent));
         }
     }
@@ -183,7 +184,20 @@ public class ProfilerAgent extends Agent {
             }
 
             myLogger.log(Logger.INFO, "Agent {0} - Received <{1}:INFORM> from {2}", new Object[]{getLocalName(), agentResponse.getType(), response.getSender().getLocalName()});
-            myLogger.log(Logger.INFO, "* Visiting artifact '" + artifact.getName() + "' made by '" + artifact.getAuthor() + "'");
+            // Ignoring artifacts that were already visited
+            Boolean unvisited = true;
+            for(Artifact a: profileAgent.getUser().getVisitedArtifacts()){
+                if (a.getId() == artifact.getId()) {
+                    unvisited = false;
+                    break;
+                }
+            }
+            if (unvisited) {
+                myLogger.log(Logger.INFO, "* Visiting artifact '" + artifact.getName() + "' made by '" + artifact.getAuthor() + "'");
+
+                // Adding the artifacts to the visited artifacts
+                profileAgent.getUser().getVisitedArtifacts().add(artifact);
+            }
             
             // Artificial sleep to simulate user looking at info then moving to the next artifact
             try {
@@ -216,8 +230,6 @@ public class ProfilerAgent extends Agent {
             String interest = (String) args[i];
             interests.add(ArtifactCategory.valueOf(interest));
         }
-
-        LinkedList<Artifact> visitedArtifacts = new LinkedList<>();
         
         this.user = new User(gender, occupation, age, interests);
         

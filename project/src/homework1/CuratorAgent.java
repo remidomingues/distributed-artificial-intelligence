@@ -184,11 +184,12 @@ public class CuratorAgent extends Agent {
 
             //Build response
             try {
-                List<Integer> artifacts = new LinkedList<Integer>();
+                List<Integer> artifacts = new LinkedList<>();
                 for(ArtifactDescription desc : descriptions) {
                     for(Artifact a : ((CuratorAgent)this.myAgent).getArtifacts()) {
-                        if(a.getCategory() == desc.getCategory() && a.getGenre() == desc.getGenre()) {
+                        if(a.getCategory() == desc.getCategory() && a.getGenre() == desc.getGenre() && !artifacts.contains(a)) {
                             artifacts.add(a.getId());
+                            break;
                         }
                     }
                 }
