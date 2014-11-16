@@ -36,7 +36,9 @@ import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.CyclicBehaviour;
 import jade.core.behaviours.OneShotBehaviour;
+import jade.core.behaviours.SequentialBehaviour;
 import jade.core.behaviours.TickerBehaviour;
+import jade.core.behaviours.WakerBehaviour;
 import jade.domain.DFService;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
@@ -46,6 +48,7 @@ import jade.lang.acl.UnreadableException;
 import jade.util.Logger;
 import java.io.IOException;
 import java.util.LinkedList;
+import java.util.logging.Level;
 
 
 public class ProfilerAgent extends Agent {
@@ -108,39 +111,31 @@ public class ProfilerAgent extends Agent {
             
             myLogger.log(Logger.INFO, "Agent {0} - Received <{1}:INFORM> from {2}", new Object[]{getLocalName(), agentResponse.getType(), response.getSender().getLocalName()});
 
-            VisitingArtifactsBehaviour visitingBehaviour = new VisitingArtifactsBehaviour(myAgent, artifactIds);
+            SequentialBehaviour visitingBehaviour = new SequentialBehaviour(myAgent);
+            for(int i=0; i < artifactIds.size(); i++) {
+                visitingBehaviour.addSubBehaviour(new VisitingArtifactBehaviour(myAgent, artifactIds.get(i)));
+            }
             myAgent.addBehaviour(visitingBehaviour);
         }
     } // END of inner class RequestVirtualTourBehaviour
-
     
-    private class VisitingArtifactsBehaviour extends TickerBehaviour {
-        public final static long VISITING_DELAY = 10000;
+    private class VisitingArtifactBehaviour extends OneShotBehaviour {
+        public final static long VISITING_DELAY = 2000;
         
-        private LinkedList<Integer> artifactsIds;
-        private int currentArtifactIndex = 0;
-        public VisitingArtifactsBehaviour(Agent a, LinkedList<Integer> artifactsIds) {
-            super(a, VISITING_DELAY);
-            
-            this.artifactsIds = artifactsIds;
-            this.currentArtifactIndex = 0;
+        private int artifactId;
+        public VisitingArtifactBehaviour(Agent a, int artifactId) {
+            super(a);
+            this.artifactId = artifactId;
         }
 
-        public void onTick() {
+        public void action() {
             ProfilerAgent profileAgent = (ProfilerAgent) myAgent;            
-
-            // If we visited all artifacts, stop the behaviour
-            if(this.currentArtifactIndex > this.artifactsIds.size() - 1) {
-                this.done();
-            }
-            
-            int currentArtifactId = this.artifactsIds.get(this.currentArtifactIndex);
-            
+                        
             // Getting full details for the current artifact
             ACLMessage requestMessage = new ACLMessage(ACLMessage.REQUEST);
             requestMessage.addReceiver(new AID("curator", false));
             
-            AgentMessage agentMsg = new AgentMessage("get-details", currentArtifactId);
+            AgentMessage agentMsg = new AgentMessage("get-details", this.artifactId);
 
             try {
                 requestMessage.setContentObject(agentMsg);
@@ -175,6 +170,13 @@ public class ProfilerAgent extends Agent {
 
             myLogger.log(Logger.INFO, "Agent {0} - Received <{1}:INFORM> from {2}", new Object[]{getLocalName(), agentResponse.getType(), response.getSender().getLocalName()});
             myLogger.log(Logger.INFO, "* Visiting artifact '" + artifact.getName() + "' made by '" + artifact + "'");
+            
+            // Artificial sleep to simulate user looking at info then moving to the next artifact
+            try {
+                Thread.sleep(VISITING_DELAY);
+            } catch (InterruptedException ex) {
+                myLogger.log(Level.SEVERE, null, ex);
+            }
         }
     } // END of inner class RequestVirtualTourBehaviour
     
@@ -194,14 +196,14 @@ public class ProfilerAgent extends Agent {
         Occupation occupation = Occupation.valueOf((String) args[1]);
         int age = Integer.parseInt((String) args[2]);
         
-        LinkedList<ArtifactCategory> interests = new LinkedList<ArtifactCategory>();
+        LinkedList<ArtifactCategory> interests = new LinkedList<>();
           
         for (int i = 3; i < args.length; i++) {
             String interest = (String) args[i];
             interests.add(ArtifactCategory.valueOf(interest));
         }
 
-        LinkedList<Artifact> visitedArtifacts = new LinkedList<Artifact>();
+        LinkedList<Artifact> visitedArtifacts = new LinkedList<>();
         
         this.user = new User(gender, occupation, age, interests);
         
