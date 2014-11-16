@@ -35,6 +35,7 @@ import jade.core.AID;
 
 import jade.core.Agent;
 import jade.core.behaviours.CyclicBehaviour;
+import jade.core.behaviours.TickerBehaviour;
 import jade.domain.DFService;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
@@ -43,16 +44,14 @@ import jade.lang.acl.ACLMessage;
 import jade.lang.acl.UnreadableException;
 import jade.util.Logger;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.LinkedList;
-import java.util.logging.Level;
 
 
-public class ProfileAgent extends Agent {
+public class ProfilerAgent extends Agent {
     private Logger myLogger = Logger.getJADELogger(getClass().getName());
 
     private User user;
-    public ProfileAgent() {
+    public ProfilerAgent() {
         myLogger.log(Logger.INFO, "Profile Agent initialized");
     }
     
@@ -67,7 +66,7 @@ public class ProfileAgent extends Agent {
         }
 
         public void action() {
-            ProfileAgent profileAgent = (ProfileAgent) myAgent;            
+            ProfilerAgent profileAgent = (ProfilerAgent) myAgent;            
 
             // Sending message to the tour-guide
             ACLMessage requestMessage = new ACLMessage(ACLMessage.REQUEST);
@@ -79,6 +78,7 @@ public class ProfileAgent extends Agent {
                 requestMessage.setContentObject(agentMsg);
             } catch (IOException ex) {
                 myLogger.log(Logger.SEVERE, "Exception while sending object message (interests)", ex);
+                return;
             }
             send(requestMessage);
             
@@ -90,21 +90,80 @@ public class ProfileAgent extends Agent {
                 return;
             }
       
-            if(response.getPerformative() != ACLMessage.INFORM){
-                try {
-                    LinkedList<Integer> artifactIds = (LinkedList<Integer>) response.getContentObject();
-                } catch (UnreadableException ex) {
-                    myLogger.log(Logger.SEVERE, "Exception while reading received object message (artifacts id)", ex);
-                }
-            }
-            else {
-                myLogger.log(Logger.INFO, "Agent " + getLocalName() +" - Unexpected message ["+ACLMessage.getPerformative(msg.getPerformative())+"] received from "+msg.getSender().getLocalName());
+            if(response.getPerformative() != ACLMessage.INFORM) {
+                myLogger.log(Logger.INFO, "Agent " + getLocalName() + " - Unexpected message [" + ACLMessage.getPerformative(response.getPerformative()) + "] received from " + response.getSender().getLocalName());
+                return;
             }
             
-            
-        }
-    } // END of inner class WaitPingAndReplyBehaviour
+            LinkedList<Integer> artifactIds;
+            try {
+                artifactIds = (LinkedList<Integer>) response.getContentObject();
+            } catch (UnreadableException ex) {
+                myLogger.log(Logger.SEVERE, "Exception while reading received object message (artifacts id)", ex);
+                return;
+            }
 
+            VisitingArtifactsBehaviour visitingBehaviour = new VisitingArtifactsBehaviour(myAgent, artifactIds);
+            myAgent.addBehaviour(visitingBehaviour);
+        }
+    } // END of inner class RequestVirtualTourBehaviour
+
+    
+    private class VisitingArtifactsBehaviour extends TickerBehaviour {
+        public final static long VISITING_DELAY = 2;
+        
+        private LinkedList<Integer> artifactsIds;
+        private int currentArtifact = 0;
+        public VisitingArtifactsBehaviour(Agent a, LinkedList<Integer> artifactsIds) {
+            super(a, VISITING_DELAY);
+            
+            this.artifactsIds = artifactsIds;
+            this.currentArtifact = 0;
+        }
+
+        public void onTick() {
+            ProfilerAgent profileAgent = (ProfilerAgent) myAgent;            
+
+            // Sending message to the tour-guide
+            ACLMessage requestMessage = new ACLMessage(ACLMessage.REQUEST);
+            requestMessage.addReceiver(new AID("tour-guide", false));
+            
+            AgentMessage agentMsg = new AgentMessage("get-tour", profileAgent.getUser());
+
+            try {
+                requestMessage.setContentObject(agentMsg);
+            } catch (IOException ex) {
+                myLogger.log(Logger.SEVERE, "Exception while sending object message (interests)", ex);
+                return;
+            }
+            send(requestMessage);
+            
+            // Getting response from the tour-guide
+            ACLMessage  response = myAgent.receive();
+            
+            if (response == null){
+                block();
+                return;
+            }
+      
+            if(response.getPerformative() != ACLMessage.INFORM) {
+                myLogger.log(Logger.INFO, "Agent " + getLocalName() + " - Unexpected message [" + ACLMessage.getPerformative(response.getPerformative()) + "] received from " + response.getSender().getLocalName());
+                return;
+            }
+            
+            LinkedList<Integer> artifactIds;
+            try {
+                artifactIds = (LinkedList<Integer>) response.getContentObject();
+            } catch (UnreadableException ex) {
+                myLogger.log(Logger.SEVERE, "Exception while reading received object message (artifacts id)", ex);
+                return;
+            }
+
+            VisitingArtifactsBehaviour visitingBehaviour = new VisitingArtifactsBehaviour(myAgent, artifactIds);
+            myAgent.addBehaviour(visitingBehaviour);
+        }
+    } // END of inner class RequestVirtualTourBehaviour
+    
     protected void setup() {
         // Getting arguments
         // Example arguments: MALE,UNEMPLOYED,21,Mythology,Science

@@ -5,13 +5,14 @@
  */
 package homework1.model;
 
+import java.io.Serializable;
 import java.util.LinkedList;
 import java.util.List;
 
 /**
  *
  */
-public class User {
+public class User implements Serializable {
     int age;
     Occupation occupation;
     Gender gender;
