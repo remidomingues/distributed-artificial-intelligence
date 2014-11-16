@@ -34,10 +34,8 @@ import homework1.model.Occupation;
 import jade.core.AID;
 
 import jade.core.Agent;
-import jade.core.behaviours.CyclicBehaviour;
 import jade.core.behaviours.OneShotBehaviour;
 import jade.core.behaviours.SequentialBehaviour;
-import jade.core.behaviours.TickerBehaviour;
 import jade.core.behaviours.WakerBehaviour;
 import jade.domain.DFService;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
@@ -111,13 +109,29 @@ public class ProfilerAgent extends Agent {
             
             myLogger.log(Logger.INFO, "Agent {0} - Received <{1}:INFORM> from {2}", new Object[]{getLocalName(), agentResponse.getType(), response.getSender().getLocalName()});
 
+            // Creating a sequential behaviour (visiting the artifacts one after the other)
             SequentialBehaviour visitingBehaviour = new SequentialBehaviour(myAgent);
             for(int i=0; i < artifactIds.size(); i++) {
                 visitingBehaviour.addSubBehaviour(new VisitingArtifactBehaviour(myAgent, artifactIds.get(i)));
             }
+            // ... and a final waker behaviour to request a new tour after a while
+            visitingBehaviour.addSubBehaviour(new NewTourBehaviour(myAgent));
+            
+            // Adding the sequential behaviour to the agent
             myAgent.addBehaviour(visitingBehaviour);
         }
     } // END of inner class RequestVirtualTourBehaviour
+    
+    private class NewTourBehaviour extends WakerBehaviour {
+        public final static long NEW_TOUR_DELAY = 4000;
+        public NewTourBehaviour(Agent a) {
+            super(a, NEW_TOUR_DELAY);
+        }
+
+        public void onWake() {
+            myAgent.addBehaviour(new RequestVirtualTourBehaviour(myAgent));
+        }
+    }
     
     private class VisitingArtifactBehaviour extends OneShotBehaviour {
         public final static long VISITING_DELAY = 2000;
