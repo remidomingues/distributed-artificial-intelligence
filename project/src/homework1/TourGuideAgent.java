@@ -37,6 +37,7 @@ import jade.core.AID;
 
 import jade.core.Agent;
 import jade.core.behaviours.CyclicBehaviour;
+import jade.core.behaviours.ParallelBehaviour;
 import jade.core.behaviours.TickerBehaviour;
 import jade.domain.DFService;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
@@ -52,6 +53,7 @@ import java.util.List;
 
 public class TourGuideAgent extends Agent {
     private Logger myLogger = Logger.getJADELogger(getClass().getName());
+    public static final int NTHREADS = 5;
 
     public TourGuideAgent() {
         myLogger.log(Logger.INFO, "Tour Guide Agent initialized");
@@ -149,7 +151,11 @@ public class TourGuideAgent extends Agent {
         dfd.setName(getAID());
         dfd.addServices(sd);
         try {
-            this.addBehaviour(new TourBuilderBehaviour(this));
+            ParallelBehaviour parallelBehaviour = new ParallelBehaviour(this, ParallelBehaviour.WHEN_ALL);
+            for(int i = 0; i < NTHREADS; ++i) {
+                parallelBehaviour.addSubBehaviour(new TourBuilderBehaviour(this));
+            }
+            this.addBehaviour(parallelBehaviour);
             DFService.register(this,dfd);
         } catch (FIPAException e) {
             myLogger.log(Logger.SEVERE, "Agent "+getLocalName()+" - Could not register with DF", e);
