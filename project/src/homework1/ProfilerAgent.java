@@ -37,18 +37,25 @@ import jade.core.behaviours.SequentialBehaviour;
 import jade.core.behaviours.WakerBehaviour;
 import jade.domain.DFService;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
+import jade.domain.FIPAAgentManagement.SearchConstraints;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
 import jade.domain.FIPAException;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.UnreadableException;
+import jade.proto.SubscriptionInitiator;
 import jade.util.Logger;
+import jade.util.leap.Iterator;
 import java.io.IOException;
 import java.util.LinkedList;
+import java.util.List;
+import java.util.Scanner;
 import java.util.logging.Level;
 
 
 public class ProfilerAgent extends Agent {
     private Logger myLogger = Logger.getJADELogger(getClass().getName());
+    private List<AID> tourGuideAgents = new LinkedList<AID>();
+    private AID selectedTourGuideAgent = null;
 
     private User user;
     public ProfilerAgent() {
@@ -58,19 +65,38 @@ public class ProfilerAgent extends Agent {
     public User getUser() {
         return this.user;
     }
+    
+    public Logger getLogger() {
+        return myLogger;
+    }
+    
+    public void addTourGuideService(AID aid) {
+        tourGuideAgents.add(aid);
+    }
+    
+    public AID getSelectedTourGuideAgent() {
+        return selectedTourGuideAgent;
+    }
+    
+    public boolean isTourGuideKnown(AID aid) {
+        return tourGuideAgents.contains(aid);
+    }
 
     private class RequestVirtualTourBehaviour extends OneShotBehaviour {
+        AID aid;
 
-        public RequestVirtualTourBehaviour(Agent a) {
+        public RequestVirtualTourBehaviour(Agent a, AID aid) {
             super(a);
+            this.aid = aid;
         }
 
+        @Override
         public void action() {
             ProfilerAgent profileAgent = (ProfilerAgent) myAgent;            
 
             // Sending message to the tour-guide
             ACLMessage requestMessage = new ACLMessage(ACLMessage.REQUEST);
-            requestMessage.addReceiver(new AID("tour-guide", false));
+            requestMessage.addReceiver(aid);
             
             AgentMessage agentMsg = new AgentMessage("get-tour", profileAgent.getUser());
 
@@ -130,7 +156,7 @@ public class ProfilerAgent extends Agent {
 
         public void onWake() {
             myLogger.log(Logger.INFO, "!! Finished current tour, requesting a new tour");
-            myAgent.addBehaviour(new RequestVirtualTourBehaviour(myAgent));
+            myAgent.addBehaviour(new RequestVirtualTourBehaviour(myAgent, ((ProfilerAgent)myAgent).getSelectedTourGuideAgent()));
         }
     }
     
@@ -233,22 +259,78 @@ public class ProfilerAgent extends Agent {
         
         this.user = new User(gender, occupation, age, interests);
         
-        // Registration with the DF
-        DFAgentDescription dfd = new DFAgentDescription();
-        ServiceDescription sd = new ServiceDescription();
-        sd.setType("ProfileAgent");
-        sd.setName(getName());
-        sd.setOwnership("TILAB");
-        dfd.setName(getAID());
-        dfd.addServices(sd);
         try {
-            DFService.register(this,dfd);
-            RequestVirtualTourBehaviour PingBehaviour = new  RequestVirtualTourBehaviour(this);
-            addBehaviour(PingBehaviour);
-        } catch (FIPAException e) {
-            myLogger.log(Logger.SEVERE, "Agent "+getLocalName()+" - Cannot register with DF", e);
-            doDelete();
+            //Look for TourGuideAgents registered to the DF
+            Thread.sleep(1000);
+        } catch (InterruptedException ex) {
+            java.util.logging.Logger.getLogger(ProfilerAgent.class.getName()).log(Level.SEVERE, null, ex);
         }
+        DFAgentDescription template = new DFAgentDescription();
+        ServiceDescription sd = new ServiceDescription();
+        sd.setType("TourGuideAgent");
+        template.addServices(sd);
+        try {
+            DFAgentDescription[] result = DFService.search(this, template);
+            tourGuideAgents.clear();
+            for (int i = 0; i < result.length; ++i) {
+                tourGuideAgents.add(result[i].getName());
+            }
+        }
+        catch (FIPAException fe) {
+            fe.printStackTrace();
+        }
+        
+        //User interaction in order to select the right tour guide agent to request
+        Scanner scanner = new Scanner(System.in);
+        while(this.selectedTourGuideAgent == null) {
+            System.out.println("Please select one of the Tour Guide agents below:");
+            int i = 1;
+            for(AID aid : tourGuideAgents) {
+                System.out.println("" + i + " - " + aid.getName());
+                i++;
+            }
+            try {
+                this.selectedTourGuideAgent = tourGuideAgents.get(Integer.parseInt(scanner.nextLine())-1);
+            } catch(Exception e) {
+                System.out.println("Invalid agent number.");
+            }
+        }
+        
+        //Sending tour guide request to the selected agent
+        addBehaviour(new RequestVirtualTourBehaviour(this, this.selectedTourGuideAgent));
+        
+        //Agent subscription to the DF in order to get notified when a new
+        //service according to the specified template is published
+        SearchConstraints sc = new SearchConstraints();
+        // We want to receive 20 results at most
+        sc.setMaxResults(new Long(20));
+
+        addBehaviour(new SubscriptionInitiator(this, DFService.createSubscriptionMessage(this, getDefaultDF(), template, sc)) {
+            protected void handleInform(ACLMessage inform) {
+                ProfilerAgent agent = (ProfilerAgent)myAgent;
+                try {
+                    DFAgentDescription[] results = DFService.decodeNotification(inform.getContent());
+                    if (results.length > 0) {
+                        for (int i = 0; i < results.length; ++i) {
+                            DFAgentDescription dfd = results[i];
+                            AID provider = dfd.getName();
+                            Iterator it = dfd.getAllServices();
+                            while (it.hasNext()) {
+                                ServiceDescription sd = (ServiceDescription) it.next();
+                                if (sd.getType().equals("TourGuideAgent") && !agent.isTourGuideKnown(provider)) {
+                                    agent.getLogger().log(Logger.INFO, "- New service published: \""+sd.getName()+"\" provided by agent "+provider.getName());
+                                    agent.addTourGuideService(provider);
+                                }
+                            }
+                        }
+                    }	
+                    System.out.println();
+                }
+                catch (FIPAException fe) {
+                    fe.printStackTrace();
+                }
+            }
+        } );
     }
 }
 

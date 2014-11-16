@@ -148,6 +148,13 @@ public class TourGuideAgent extends Agent {
     } // END of inner class TourBuilderBehaviour
 
     protected void setup() {
+        //Start multiple children to handle messages
+        ParallelBehaviour parallelBehaviour = new ParallelBehaviour(this, ParallelBehaviour.WHEN_ALL);
+        for(int i = 0; i < NTHREADS; ++i) {
+            parallelBehaviour.addSubBehaviour(new TourBuilderBehaviour(this));
+        }
+        this.addBehaviour(parallelBehaviour);
+
         // Registration with the DF
         DFAgentDescription dfd = new DFAgentDescription();
         ServiceDescription sd = new ServiceDescription();
@@ -157,14 +164,10 @@ public class TourGuideAgent extends Agent {
         dfd.setName(getAID());
         dfd.addServices(sd);
         try {
-            ParallelBehaviour parallelBehaviour = new ParallelBehaviour(this, ParallelBehaviour.WHEN_ALL);
-            for(int i = 0; i < NTHREADS; ++i) {
-                parallelBehaviour.addSubBehaviour(new TourBuilderBehaviour(this));
-            }
-            this.addBehaviour(parallelBehaviour);
+            myLogger.log(Logger.INFO, "Agent {0} - Agent registered to Directory Facilitator {1}", new Object[]{getLocalName()});
             DFService.register(this,dfd);
         } catch (FIPAException e) {
-            myLogger.log(Logger.SEVERE, "Agent "+getLocalName()+" - Could not register with DF", e);
+            myLogger.log(Logger.SEVERE, "Agent "+getLocalName()+" - Could not register to DF", e);
             doDelete();
         }
     }
