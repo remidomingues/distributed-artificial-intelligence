@@ -40,6 +40,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.logging.Level;
 
 /**
@@ -57,10 +58,34 @@ public class CuratorAgent extends Agent {
     /**
      * Constructor
      */
+    
+    private Object pickRandom(Object[] objects, Random random) {
+        return objects[new Random().nextInt(objects.length)];
+    }
     public CuratorAgent() {
         artifacts.put(1, new Artifact(1, "Mario Bros", "Shigeru Miyamoto", new GregorianCalendar(1983, 1, 1), "Japan", ArtifactGenre.Game, ArtifactCategory.Science));
-        artifacts.put(2, new Artifact(2, "Le Penseur", "Auguste Rodin", new GregorianCalendar(1902, 1, 1), "France",ArtifactGenre.Sculpture, ArtifactCategory.Philosophy));
-        
+        artifacts.put(2, new Artifact(2, "Le Penseur", "Auguste Rodin", new GregorianCalendar(1902, 1, 1), "France", ArtifactGenre.Sculpture, ArtifactCategory.Philosophy));
+        artifacts.put(3, new Artifact(3, "Roman empire", "Volubilis", new GregorianCalendar(-300, 1, 1), "Morocco", ArtifactGenre.Misc, ArtifactCategory.Archeology));
+        ArtifactCategory[] categories = ArtifactCategory.values();
+        ArtifactGenre[] genres = ArtifactGenre.values();
+        String[] firstnames = {"Leonardo", "Gustav", "Vlad", "Nicolas", "Genghis", "Albert", "Michael", "Sebastian"};
+        String[] lastnames = {"Da Vinci", "Klimt", "Kush", "Poussin", "Khan", "Einstein", "Angelo", "Kruger"};
+        String[] places = {"France","Germany","Italy", "Greece", "USA", "Sweden"};
+        Random random = new Random();
+        for(int i = 4; i < 100; i++) {
+            ArtifactCategory category = (ArtifactCategory) pickRandom(categories, random);
+            ArtifactGenre genre = (ArtifactGenre) pickRandom(genres, random);
+            String firstname = (String) pickRandom(firstnames, random);
+            String lastname = (String) pickRandom(lastnames, random);
+            String place = (String) pickRandom(places, random);
+            String authorName = firstname + " " + lastname;
+            int year = 300 + random.nextInt(1500);
+            int month = 1 + random.nextInt(11);
+            int day = 1 + random.nextInt(28);
+            String artifactName = "Random artifact #" + i;
+
+            artifacts.put(i, new Artifact(i, authorName, artifactName, new GregorianCalendar(year, month, day), place, genre, category));
+        }
         this.addBehaviour(new CuratorRequestsHandlingBehaviour(this));
         myLogger.log(Logger.INFO, "Curator Agent initialized");
     }
