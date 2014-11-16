@@ -131,11 +131,11 @@ public class CuratorAgent extends Agent {
                         AgentMessage message = (AgentMessage)content;
                         
                         //Artifact details request from ProfilerAgent
-                        if(message.getType().equals("DET")){
+                        if(message.getType().equals("get-details")){
                             this.answerArtifactDetailsMessage(reply, message, msg.getSender().getLocalName());
                             
                         //Artifact selection request based on genre and category from TourGuideAgent
-                        } else if(message.getType().equals("GET")){
+                        } else if(message.getType().equals("get-artifacts")){
                             this.answerArtifactSelectionMessage(reply, message, msg.getSender().getLocalName());
                         } else{
                             myLogger.log(Logger.INFO, "Agent {0} - Unexpected request type [{1}] received", new Object[]{getLocalName(), message.getType()});
@@ -169,7 +169,7 @@ public class CuratorAgent extends Agent {
          * @param sender 
          */
         private void answerArtifactSelectionMessage(ACLMessage reply, AgentMessage request, String sender) {
-            myLogger.log(Logger.INFO, "Agent {0} - Received DET request from {1}", new Object[]{getLocalName(), sender});
+            myLogger.log(Logger.INFO, "Agent {0} - Received get-artifacts request from {1}", new Object[]{getLocalName(), sender});
             reply.setPerformative(ACLMessage.INFORM);
 
             //Parse message
@@ -192,7 +192,7 @@ public class CuratorAgent extends Agent {
                         }
                     }
                 }
-                reply.setContentObject(new AgentMessage("GET", artifacts));
+                reply.setContentObject(new AgentMessage("get-artifacts", artifacts));
                 
             } catch (IOException ex) {
                 java.util.logging.Logger.getLogger(CuratorAgent.class.getName()).log(Level.SEVERE, "Could not serialize artifact ID list ", ex);
@@ -208,22 +208,23 @@ public class CuratorAgent extends Agent {
          * @param sender 
          */
         private void answerArtifactDetailsMessage(ACLMessage reply, AgentMessage request, String sender) {
-            myLogger.log(Logger.INFO, "Agent {0} - Received DET request from {1}", new Object[]{getLocalName(), sender});
+            myLogger.log(Logger.INFO, "Agent {0} - Received get-details request from {1}", new Object[]{getLocalName(), sender});
             reply.setPerformative(ACLMessage.INFORM);
 
             //Parse message
-            Integer id = null;
+            int id;
             try {
-                id = Integer.parseInt((String)request.getContent());
+                id = (int)request.getContent();
             } catch(Exception e) {
                 myLogger.log(Logger.INFO, "Agent {0} - Unexpected request content [{1}] received", new Object[]{getLocalName(), request.getContent()});
                 reply.setPerformative(ACLMessage.REFUSE);
                 reply.setContent("(UnexpectedContent ("+request.getContent()+"))");
+                return;
             }
 
             //Build response
             try {
-                reply.setContentObject(new AgentMessage("DET", artifacts.get(id)));
+                reply.setContentObject(new AgentMessage("get-details", artifacts.get(id)));
             } catch (IOException ex) {
                 java.util.logging.Logger.getLogger(CuratorAgent.class.getName()).log(Level.SEVERE, "Could not serialize artifact "+id, ex);
                 reply.setPerformative(ACLMessage.FAILURE);

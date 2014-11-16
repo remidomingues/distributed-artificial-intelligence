@@ -35,6 +35,7 @@ import jade.core.AID;
 
 import jade.core.Agent;
 import jade.core.behaviours.CyclicBehaviour;
+import jade.core.behaviours.OneShotBehaviour;
 import jade.core.behaviours.TickerBehaviour;
 import jade.domain.DFService;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
@@ -59,7 +60,7 @@ public class ProfilerAgent extends Agent {
         return this.user;
     }
 
-    private class RequestVirtualTourBehaviour extends CyclicBehaviour {
+    private class RequestVirtualTourBehaviour extends OneShotBehaviour {
 
         public RequestVirtualTourBehaviour(Agent a) {
             super(a);
@@ -95,14 +96,17 @@ public class ProfilerAgent extends Agent {
                 return;
             }
             
+            AgentMessage agentResponse = null;
             LinkedList<Integer> artifactIds;
             try {
-                AgentMessage agentResponse = (AgentMessage) response.getContentObject();
+                agentResponse = (AgentMessage) response.getContentObject();
                 artifactIds = (LinkedList<Integer>) agentResponse.getContent();
             } catch (UnreadableException ex) {
                 myLogger.log(Logger.SEVERE, "Exception while reading received object message (artifacts id)", ex);
                 return;
             }
+            
+            myLogger.log(Logger.INFO, "Agent {0} - Received <{1}:INFORM> from {2}", new Object[]{getLocalName(), agentResponse.getType(), response.getSender().getLocalName()});
 
             VisitingArtifactsBehaviour visitingBehaviour = new VisitingArtifactsBehaviour(myAgent, artifactIds);
             myAgent.addBehaviour(visitingBehaviour);
@@ -111,7 +115,7 @@ public class ProfilerAgent extends Agent {
 
     
     private class VisitingArtifactsBehaviour extends TickerBehaviour {
-        public final static long VISITING_DELAY = 2;
+        public final static long VISITING_DELAY = 10000;
         
         private LinkedList<Integer> artifactsIds;
         private int currentArtifactIndex = 0;
@@ -136,7 +140,7 @@ public class ProfilerAgent extends Agent {
             ACLMessage requestMessage = new ACLMessage(ACLMessage.REQUEST);
             requestMessage.addReceiver(new AID("curator", false));
             
-            AgentMessage agentMsg = new AgentMessage("DET", currentArtifactId);
+            AgentMessage agentMsg = new AgentMessage("get-details", currentArtifactId);
 
             try {
                 requestMessage.setContentObject(agentMsg);
@@ -159,15 +163,17 @@ public class ProfilerAgent extends Agent {
                 return;
             }
             
+            AgentMessage agentResponse = null;
             Artifact artifact;
             try {
-                AgentMessage agentResponse = (AgentMessage) response.getContentObject();
+                agentResponse = (AgentMessage) response.getContentObject();
                 artifact = (Artifact) agentResponse.getContent();
             } catch (UnreadableException ex) {
                 myLogger.log(Logger.SEVERE, "Exception while reading received object message (artifacts id)", ex);
                 return;
             }
 
+            myLogger.log(Logger.INFO, "Agent {0} - Received <{1}:INFORM> from {2}", new Object[]{getLocalName(), agentResponse.getType(), response.getSender().getLocalName()});
             myLogger.log(Logger.INFO, "* Visiting artifact '" + artifact.getName() + "' made by '" + artifact + "'");
         }
     } // END of inner class RequestVirtualTourBehaviour

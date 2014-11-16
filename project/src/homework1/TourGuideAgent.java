@@ -91,6 +91,8 @@ public class TourGuideAgent extends Agent {
                     return;
                 }
                 
+                myLogger.log(Logger.INFO, "Agent {0} - Received get-tour request from {1}", new Object[]{getLocalName(), msg.getSender().getLocalName()});
+                
                 List<ArtifactDescription> descriptions = new LinkedList<ArtifactDescription>();
                 for(ArtifactCategory categ : user.getInterests()) {
                     for(ArtifactGenre genre : ArtifactGenre.values()) {
@@ -102,7 +104,7 @@ public class TourGuideAgent extends Agent {
                 ACLMessage requestMessage = new ACLMessage(ACLMessage.REQUEST);
                 requestMessage.addReceiver(new AID("curator", false));
 
-                AgentMessage agentMsg = new AgentMessage("GET", descriptions);
+                AgentMessage agentMsg = new AgentMessage("get-artifacts", descriptions);
 
                 try {
                     requestMessage.setContentObject(agentMsg);
@@ -112,7 +114,7 @@ public class TourGuideAgent extends Agent {
                 }
                 send(requestMessage);
                 
-            } else if(message.getType().equals("GET")) {
+            } else if(message.getType().equals("get-artifacts")) {
                 List<Integer> artifacts = null;
                 try {
                     artifacts = (List<Integer>) message.getContent();
@@ -120,6 +122,8 @@ public class TourGuideAgent extends Agent {
                     myLogger.log(Logger.SEVERE, "Invalid message content received from "+msg.getSender().getLocalName(), e);
                     return;
                 }
+                
+                myLogger.log(Logger.INFO, "Agent {0} - Received get-artifacts request from {1}", new Object[]{getLocalName(), msg.getSender().getLocalName()});
                 
                 //Send artifacts ID response to ProfilerAgent
                 ACLMessage requestMessage = new ACLMessage(ACLMessage.INFORM);
