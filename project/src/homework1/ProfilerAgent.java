@@ -178,8 +178,10 @@ public class ProfilerAgent extends Agent {
         Object[] args = getArguments();
 
         if (args == null || args.length < 4) {
-            myLogger.log(Logger.SEVERE, "Didn't pass any/enough arguments to the Profile Agent");
-            return;
+            myLogger.log(Logger.SEVERE, "Didn't pass enough arguments to the Profile Agent, falling back to default arguments.");
+            // Putting default parameters
+            String[] defaultArguments = {"MALE", "UNEMPLOYED", "21", "Mythology", "Science"};
+            args = (Object[]) defaultArguments;
         }
 
         Gender gender = Gender.valueOf((String) args[0]);
