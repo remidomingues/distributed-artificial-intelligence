@@ -158,7 +158,7 @@ public class TourGuideAgent extends Agent {
         // Registration with the DF
         DFAgentDescription dfd = new DFAgentDescription();
         ServiceDescription sd = new ServiceDescription();
-        sd.setType("TourGuideAgent");
+        sd.setType("TourGuideBuilder");
         sd.setName(getName());
         sd.setOwnership("TILAB");
         dfd.setName(getAID());

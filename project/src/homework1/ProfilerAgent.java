@@ -267,7 +267,7 @@ public class ProfilerAgent extends Agent {
         }
         DFAgentDescription template = new DFAgentDescription();
         ServiceDescription sd = new ServiceDescription();
-        sd.setType("TourGuideAgent");
+        sd.setType("TourGuideBuilder");
         template.addServices(sd);
         try {
             DFAgentDescription[] result = DFService.search(this, template);
