@@ -84,7 +84,7 @@ public class CuratorAgent extends Agent {
             int day = 1 + random.nextInt(28);
             String artifactName = "Random artifact #" + i;
 
-            artifacts.put(i, new Artifact(i, authorName, artifactName, new GregorianCalendar(year, month, day), place, genre, category));
+            artifacts.put(i, new Artifact(i, artifactName, authorName, new GregorianCalendar(year, month, day), place, genre, category));
         }
         this.addBehaviour(new CuratorRequestsHandlingBehaviour(this));
         myLogger.log(Logger.INFO, "Curator Agent initialized");

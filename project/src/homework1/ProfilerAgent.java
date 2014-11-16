@@ -169,7 +169,7 @@ public class ProfilerAgent extends Agent {
             }
 
             myLogger.log(Logger.INFO, "Agent {0} - Received <{1}:INFORM> from {2}", new Object[]{getLocalName(), agentResponse.getType(), response.getSender().getLocalName()});
-            myLogger.log(Logger.INFO, "* Visiting artifact '" + artifact.getName() + "' made by '" + artifact + "'");
+            myLogger.log(Logger.INFO, "* Visiting artifact '" + artifact.getName() + "' made by '" + artifact.getAuthor() + "'");
             
             // Artificial sleep to simulate user looking at info then moving to the next artifact
             try {
