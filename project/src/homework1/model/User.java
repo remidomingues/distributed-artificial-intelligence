@@ -13,12 +13,12 @@ import java.util.List;
  */
 public class User {
     int age;
-    String occupation;
+    Occupation occupation;
     Gender gender;
     List<ArtifactCategory> interests;
     List<Artifact> visitedArtifacts = new LinkedList<>();
     
-    public User(int age, String occupation, List<ArtifactCategory> interests) {
+    public User(Gender gender, Occupation occupation, int age, List<ArtifactCategory> interests) {
         this.age = age;
         this.occupation = occupation;
         this.interests = interests;
@@ -28,7 +28,7 @@ public class User {
         return age;
     }
 
-    public String getOccupation() {
+    public Occupation getOccupation() {
         return occupation;
     }
 
@@ -43,4 +43,5 @@ public class User {
     public List<Artifact> getVisitedArtifacts() {
         return visitedArtifacts;
     }
+
 }
