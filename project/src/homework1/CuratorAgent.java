@@ -30,14 +30,11 @@ import homework1.model.ArtifactDescription;
 import homework1.model.ArtifactGenre;
 import jade.core.Agent;
 import jade.core.behaviours.CyclicBehaviour;
-import jade.domain.DFService;
-import jade.domain.FIPAAgentManagement.DFAgentDescription;
-import jade.domain.FIPAAgentManagement.ServiceDescription;
-import jade.domain.FIPAException;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.UnreadableException;
 import jade.util.Logger;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -46,26 +43,46 @@ import java.util.Map;
 import java.util.logging.Level;
 
 /**
-   This example shows a minimal agent that just prints "Hallo World!" 
-   and then terminates.
-   @author Giovanni Caire - TILAB
+ * Curator agent, manage the following requests:
+ * - Artifact details request: artifact ID -> artifact details
+ * - Artifact selection request: List<ArtifactGender, ArtifactCategory> -> List<Artifact ID>
+ * @author Rémi Domingues <remidomingues@live.fr>
  */
-
 public class CuratorAgent extends Agent {
+    /** Logger */
     private Logger myLogger = Logger.getJADELogger(getClass().getName());
+    /** Artifacts data */
     private Map<Integer, Artifact> artifacts = new HashMap<Integer, Artifact>();
     
+    /**
+     * Constructor
+     */
     public CuratorAgent() {
         artifacts.put(1, new Artifact(1, "Mario Bros", "Shigeru Miyamoto", new GregorianCalendar(1983, 1, 1), "Japan", ArtifactGenre.Game, ArtifactCategory.Science));
         artifacts.put(2, new Artifact(2, "Le Penseur", "Auguste Rodin", new GregorianCalendar(1902, 1, 1), "France",ArtifactGenre.Sculpture, ArtifactCategory.Philosophy));
         
-        this.addBehaviour(new ArtifactsDetailsProviderBehaviour(this));
+        this.addBehaviour(new CuratorRequestsHandlingBehaviour(this));
         myLogger.log(Logger.INFO, "Curator Agent initialized");
     }
+    
+    /**
+     * Return a collection of artifacts
+     * @return A collection of artifacts
+     */
+    public Collection<Artifact> getArtifacts() {
+        return artifacts.values();
+    }
         
-    private class ArtifactsDetailsProviderBehaviour extends CyclicBehaviour {
-
-        public ArtifactsDetailsProviderBehaviour(Agent a) {
+    /**
+     * Wait for an ACLMessage request and answer it according to the request
+     * defined for the given agent
+     */
+    private class CuratorRequestsHandlingBehaviour extends CyclicBehaviour {
+        /**
+         * Constructor
+         * @param a Agent
+         */
+        public CuratorRequestsHandlingBehaviour(Agent a) {
             super(a);
         }
 
@@ -87,25 +104,29 @@ public class CuratorAgent extends Agent {
                     
                     if(content != null && content instanceof AgentMessage){
                         AgentMessage message = (AgentMessage)content;
+                        
+                        //Artifact details request from ProfilerAgent
                         if(message.getType().equals("DET")){
                             this.answerArtifactDetailsMessage(reply, message, msg.getSender().getLocalName());
+                            
+                        //Artifact selection request based on genre and category from TourGuideAgent
                         } else if(message.getType().equals("GET")){
                             this.answerArtifactSelectionMessage(reply, message, msg.getSender().getLocalName());
                         } else{
-                            myLogger.log(Logger.INFO, "Agent "+getLocalName()+" - Unexpected request type ["+message.getType()+"] received");
+                            myLogger.log(Logger.INFO, "Agent {0} - Unexpected request type [{1}] received", new Object[]{getLocalName(), message.getType()});
                             reply.setPerformative(ACLMessage.REFUSE);
                             reply.setContent("(UnexpectedType ("+message.getType()+"))");
                         }
                     }
                     else{
-                        myLogger.log(Logger.INFO, "Agent "+getLocalName()+" - Unexpected request ["+content+"] received from "+msg.getSender().getLocalName());
+                        myLogger.log(Logger.INFO, "Agent {0} - Unexpected request [{1}] received from {2}", new Object[]{getLocalName(), content, msg.getSender().getLocalName()});
                         reply.setPerformative(ACLMessage.REFUSE);
                         reply.setContent("(UnexpectedContent ("+content+"))");
                     }
 
                 }
                 else {
-                    myLogger.log(Logger.INFO, "Agent "+getLocalName()+" - Unexpected message ["+ACLMessage.getPerformative(msg.getPerformative())+"] received from "+msg.getSender().getLocalName());
+                    myLogger.log(Logger.INFO, "Agent {0} - Unexpected message [{1}] received from {2}", new Object[]{getLocalName(), ACLMessage.getPerformative(msg.getPerformative()), msg.getSender().getLocalName()});
                     reply.setPerformative(ACLMessage.NOT_UNDERSTOOD);
                     reply.setContent("( (Unexpected-act "+ACLMessage.getPerformative(msg.getPerformative())+") )");   
                 }
@@ -116,8 +137,14 @@ public class CuratorAgent extends Agent {
             }
         }
             
+        /**
+         * Parse an artifact selection request and build the appropriate answer
+         * @param reply
+         * @param request
+         * @param sender 
+         */
         private void answerArtifactSelectionMessage(ACLMessage reply, AgentMessage request, String sender) {
-            myLogger.log(Logger.INFO, "Agent "+getLocalName()+" - Received DET request from "+sender);
+            myLogger.log(Logger.INFO, "Agent {0} - Received DET request from {1}", new Object[]{getLocalName(), sender});
             reply.setPerformative(ACLMessage.INFORM);
 
             //Parse message
@@ -132,19 +159,31 @@ public class CuratorAgent extends Agent {
 
             //Build response
             try {
-                List<Artifact> artifacts = new LinkedList<Artifact>();
-                
+                List<Integer> artifacts = new LinkedList<Integer>();
+                for(ArtifactDescription desc : descriptions) {
+                    for(Artifact a : ((CuratorAgent)this.myAgent).getArtifacts()) {
+                        if(a.getCategory() == desc.getCategory() && a.getGenre() == desc.getGenre()) {
+                            artifacts.add(a.getId());
+                        }
+                    }
+                }
                 reply.setContentObject(new AgentMessage("GET", artifacts));
                 
             } catch (IOException ex) {
-                java.util.logging.Logger.getLogger(CuratorAgent.class.getName()).log(Level.SEVERE, "Could not serialize artifact "+id, ex);
+                java.util.logging.Logger.getLogger(CuratorAgent.class.getName()).log(Level.SEVERE, "Could not serialize artifact ID list ", ex);
                 reply.setPerformative(ACLMessage.FAILURE);
                 reply.setContent("(Internal error)");
             }
         }
         
+        /**
+         * Parse an artifact details request and build the appropriate answer
+         * @param reply
+         * @param request
+         * @param sender 
+         */
         private void answerArtifactDetailsMessage(ACLMessage reply, AgentMessage request, String sender) {
-            myLogger.log(Logger.INFO, "Agent "+getLocalName()+" - Received DET request from "+sender);
+            myLogger.log(Logger.INFO, "Agent {0} - Received DET request from {1}", new Object[]{getLocalName(), sender});
             reply.setPerformative(ACLMessage.INFORM);
 
             //Parse message

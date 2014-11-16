@@ -6,7 +6,7 @@
 package homework1.model;
 
 /**
- *
+ * Artifact genre
  * @author Rémi Domingues <remidomingues@live.fr>
  */
 public enum ArtifactGenre {

@@ -6,7 +6,7 @@
 package homework1.model;
 
 /**
- *
+ * Artifact description used for the selection (gender and category)
  * @author Rémi Domingues <remidomingues@live.fr>
  */
 public class ArtifactDescription {

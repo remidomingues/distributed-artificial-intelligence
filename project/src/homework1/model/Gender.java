@@ -6,7 +6,7 @@
 package homework1.model;
 
 /**
- *
+ * User gender
  */
 public enum Gender {
     MALE, FEMALE;

@@ -9,7 +9,7 @@ import java.io.Serializable;
 import java.util.GregorianCalendar;
 
 /**
- *
+ * Museum artifact
  * @author Rémi Domingues <remidomingues@live.fr>
  */
 public class Artifact implements Serializable {
@@ -21,6 +21,16 @@ public class Artifact implements Serializable {
     ArtifactGenre genre;
     ArtifactCategory category;
 
+    /**
+     * Constructor
+     * @param id
+     * @param name
+     * @param author
+     * @param createdAt
+     * @param country
+     * @param genre
+     * @param category 
+     */
     public Artifact(int id, String name, String author, GregorianCalendar createdAt, String country, ArtifactGenre genre, ArtifactCategory category) {
         this.id = id;
         this.name = name;

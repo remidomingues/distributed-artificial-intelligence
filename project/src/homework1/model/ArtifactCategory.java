@@ -6,7 +6,7 @@
 package homework1.model;
 
 /**
- *
+ * Artifact category
  */
 public enum ArtifactCategory {
     Mythology, Science, Nature, MiddleAge, Archeology, Cubism, Philosophy, Misc;

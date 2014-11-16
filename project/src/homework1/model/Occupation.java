@@ -6,7 +6,7 @@
 package homework1.model;
 
 /**
- *
+ * User occupation
  */
 public enum Occupation {
     UNEMPLOYED, STUDENT, ARTISTIC, FINANCIAL, SCIENTIFIC;
