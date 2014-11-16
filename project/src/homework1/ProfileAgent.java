@@ -29,6 +29,7 @@ import homework1.AgentMessage;
 import homework1.model.Artifact;
 import homework1.model.ArtifactCategory;
 import homework1.model.Gender;
+import homework1.model.User;
 import homework1.model.Occupation;
 import jade.core.AID;
 
@@ -50,18 +51,13 @@ import java.util.logging.Level;
 public class ProfileAgent extends Agent {
     private Logger myLogger = Logger.getJADELogger(getClass().getName());
 
-    private Gender gender;
-    private Occupation occupation;
-    private int age;
-    private ArrayList<ArtifactCategory> interests;
-    private ArrayList<Artifact> visitedArtifacts;
-
+    private User user;
     public ProfileAgent() {
         myLogger.log(Logger.INFO, "Profile Agent initialized");
     }
     
-    public ArrayList<ArtifactCategory> getInterests() {
-        return this.interests;
+    public User getUser() {
+        return this.user;
     }
 
     private class RequestVirtualTourBehaviour extends CyclicBehaviour {
@@ -77,7 +73,7 @@ public class ProfileAgent extends Agent {
             ACLMessage requestMessage = new ACLMessage(ACLMessage.REQUEST);
             requestMessage.addReceiver(new AID("tour-guide", false));
             
-            AgentMessage agentMsg = new AgentMessage("get-tour", profileAgent.getInterests());
+            AgentMessage agentMsg = new AgentMessage("get-tour", profileAgent.getUser());
 
             try {
                 requestMessage.setContentObject(agentMsg);
@@ -104,8 +100,8 @@ public class ProfileAgent extends Agent {
             else {
                 myLogger.log(Logger.INFO, "Agent " + getLocalName() +" - Unexpected message ["+ACLMessage.getPerformative(msg.getPerformative())+"] received from "+msg.getSender().getLocalName());
             }
-
-
+            
+            
         }
     } // END of inner class WaitPingAndReplyBehaviour
 
@@ -119,18 +115,20 @@ public class ProfileAgent extends Agent {
             return;
         }
 
-        this.gender = Gender.valueOf((String) args[0]);
-        this.occupation = Occupation.valueOf((String) args[1]);
-        this.age = Integer.parseInt((String) args[2]);
+        Gender gender = Gender.valueOf((String) args[0]);
+        Occupation occupation = Occupation.valueOf((String) args[1]);
+        int age = Integer.parseInt((String) args[2]);
         
-        this.interests = new ArrayList<ArtifactCategory>();
+        LinkedList<ArtifactCategory> interests = new LinkedList<ArtifactCategory>();
           
         for (int i = 3; i < args.length; i++) {
             String interest = (String) args[i];
-            this.interests.add(ArtifactCategory.valueOf(interest));
+            interests.add(ArtifactCategory.valueOf(interest));
         }
 
-        this.visitedArtifacts = new ArrayList<Artifact>();
+        LinkedList<Artifact> visitedArtifacts = new LinkedList<Artifact>();
+        
+        this.user = new User(gender, occupation, age, interests);
         
         // Registration with the DF
         DFAgentDescription dfd = new DFAgentDescription();
