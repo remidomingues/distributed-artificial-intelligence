@@ -67,7 +67,7 @@ public class TourGuideAgent extends Agent {
 
         public void action() {
             //Wait message from ProfileAgent
-            ACLMessage  msg = myAgent.receive();
+            ACLMessage  msg = myAgent.blockingReceive();
             
             if(msg == null){
                 myLogger.log(Logger.SEVERE, "Null message received from {0}", msg.getSender().getLocalName());

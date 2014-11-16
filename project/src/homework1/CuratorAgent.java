@@ -114,7 +114,7 @@ public class CuratorAgent extends Agent {
         @Override
         public void action() {
             Integer id = null;
-            ACLMessage  msg = myAgent.receive();
+            ACLMessage  msg = myAgent.blockingReceive();
             if(msg != null){
                 ACLMessage reply = msg.createReply();
 

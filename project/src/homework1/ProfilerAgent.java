@@ -83,7 +83,7 @@ public class ProfilerAgent extends Agent {
             send(requestMessage);
             
             // Getting response from the tour-guide
-            ACLMessage  response = myAgent.receive();
+            ACLMessage  response = myAgent.blockingReceive();
             
             if (response == null){
                 block();
@@ -147,7 +147,7 @@ public class ProfilerAgent extends Agent {
             send(requestMessage);
 
             // Getting response from the tour-guide
-            ACLMessage  response = myAgent.receive();
+            ACLMessage  response = myAgent.blockingReceive();
             
             if (response == null){
                 block();

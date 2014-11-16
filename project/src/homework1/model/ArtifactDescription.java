@@ -5,11 +5,13 @@
  */
 package homework1.model;
 
+import java.io.Serializable;
+
 /**
  * Artifact description used for the selection (gender and category)
  * @author Rémi Domingues <remidomingues@live.fr>
  */
-public class ArtifactDescription {
+public class ArtifactDescription implements Serializable {
     ArtifactCategory category;
     ArtifactGenre genre;
 
