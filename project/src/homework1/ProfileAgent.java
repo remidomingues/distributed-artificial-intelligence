@@ -24,10 +24,13 @@
  */
 package homework1;
 
+import homework1.AgentMessage;
+
 import homework1.model.Artifact;
 import homework1.model.ArtifactCategory;
 import homework1.model.Gender;
 import homework1.model.Occupation;
+import jade.core.AID;
 
 import jade.core.Agent;
 import jade.core.behaviours.CyclicBehaviour;
@@ -36,8 +39,12 @@ import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
 import jade.domain.FIPAException;
 import jade.lang.acl.ACLMessage;
+import jade.lang.acl.UnreadableException;
 import jade.util.Logger;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.logging.Level;
 
 
 public class ProfileAgent extends Agent {
@@ -52,42 +59,53 @@ public class ProfileAgent extends Agent {
     public ProfileAgent() {
         myLogger.log(Logger.INFO, "Profile Agent initialized");
     }
+    
+    public ArrayList<ArtifactCategory> getInterests() {
+        return this.interests;
+    }
 
-    private class ArtifactsDetailsProviderBehaviour extends CyclicBehaviour {
+    private class RequestVirtualTourBehaviour extends CyclicBehaviour {
 
-        public ArtifactsDetailsProviderBehaviour(Agent a) {
+        public RequestVirtualTourBehaviour(Agent a) {
             super(a);
         }
 
         public void action() {
-            ACLMessage  msg = myAgent.receive();
-            if(msg != null){
-                ACLMessage reply = msg.createReply();
+            ProfileAgent profileAgent = (ProfileAgent) myAgent;            
 
-                if(msg.getPerformative()== ACLMessage.REQUEST){
-                    String content = msg.getContent();
-                    if ((content != null) && (content.indexOf("ping") != -1)){
-                        myLogger.log(Logger.INFO, "Agent "+getLocalName()+" - Received PING Request from "+msg.getSender().getLocalName());
-                        reply.setPerformative(ACLMessage.INFORM);
-                        reply.setContent("pong");
-                    }
-                    else{
-                        myLogger.log(Logger.INFO, "Agent "+getLocalName()+" - Unexpected request ["+content+"] received from "+msg.getSender().getLocalName());
-                        reply.setPerformative(ACLMessage.REFUSE);
-                        reply.setContent("( UnexpectedContent ("+content+"))");
-                    }
+            // Sending message to the tour-guide
+            ACLMessage requestMessage = new ACLMessage(ACLMessage.REQUEST);
+            requestMessage.addReceiver(new AID("tour-guide", false));
+            
+            AgentMessage agentMsg = new AgentMessage("get-tour", profileAgent.getInterests());
 
+            try {
+                requestMessage.setContentObject(agentMsg);
+            } catch (IOException ex) {
+                myLogger.log(Logger.SEVERE, "Exception while sending object message (interests)", ex);
+            }
+            send(requestMessage);
+            
+            // Getting response from the tour-guide
+            ACLMessage  response = myAgent.receive();
+            
+            if (response == null){
+                block();
+                return;
+            }
+      
+            if(response.getPerformative() != ACLMessage.INFORM){
+                try {
+                    LinkedList<Integer> artifactIds = (LinkedList<Integer>) response.getContentObject();
+                } catch (UnreadableException ex) {
+                    myLogger.log(Logger.SEVERE, "Exception while reading received object message (artifacts id)", ex);
                 }
-                else {
-                    myLogger.log(Logger.INFO, "Agent "+getLocalName()+" - Unexpected message ["+ACLMessage.getPerformative(msg.getPerformative())+"] received from "+msg.getSender().getLocalName());
-                    reply.setPerformative(ACLMessage.NOT_UNDERSTOOD);
-                    reply.setContent("( (Unexpected-act "+ACLMessage.getPerformative(msg.getPerformative())+") )");
-                }
-                send(reply);
             }
             else {
-                    block();
+                myLogger.log(Logger.INFO, "Agent " + getLocalName() +" - Unexpected message ["+ACLMessage.getPerformative(msg.getPerformative())+"] received from "+msg.getSender().getLocalName());
             }
+
+
         }
     } // END of inner class WaitPingAndReplyBehaviour
 
@@ -124,7 +142,7 @@ public class ProfileAgent extends Agent {
         dfd.addServices(sd);
         try {
             DFService.register(this,dfd);
-            ArtifactsDetailsProviderBehaviour PingBehaviour = new  ArtifactsDetailsProviderBehaviour(this);
+            RequestVirtualTourBehaviour PingBehaviour = new  RequestVirtualTourBehaviour(this);
             addBehaviour(PingBehaviour);
         } catch (FIPAException e) {
             myLogger.log(Logger.SEVERE, "Agent "+getLocalName()+" - Cannot register with DF", e);
