@@ -97,7 +97,8 @@ public class ProfilerAgent extends Agent {
             
             LinkedList<Integer> artifactIds;
             try {
-                artifactIds = (LinkedList<Integer>) response.getContentObject();
+                AgentMessage agentResponse = (AgentMessage) response.getContentObject();
+                artifactIds = (LinkedList<Integer>) agentResponse.getContent();
             } catch (UnreadableException ex) {
                 myLogger.log(Logger.SEVERE, "Exception while reading received object message (artifacts id)", ex);
                 return;
@@ -113,31 +114,38 @@ public class ProfilerAgent extends Agent {
         public final static long VISITING_DELAY = 2;
         
         private LinkedList<Integer> artifactsIds;
-        private int currentArtifact = 0;
+        private int currentArtifactIndex = 0;
         public VisitingArtifactsBehaviour(Agent a, LinkedList<Integer> artifactsIds) {
             super(a, VISITING_DELAY);
             
             this.artifactsIds = artifactsIds;
-            this.currentArtifact = 0;
+            this.currentArtifactIndex = 0;
         }
 
         public void onTick() {
             ProfilerAgent profileAgent = (ProfilerAgent) myAgent;            
 
-            // Sending message to the tour-guide
-            ACLMessage requestMessage = new ACLMessage(ACLMessage.REQUEST);
-            requestMessage.addReceiver(new AID("tour-guide", false));
+            // If we visited all artifacts, stop the behaviour
+            if(this.currentArtifactIndex > this.artifactsIds.size() - 1) {
+                this.done();
+            }
             
-            AgentMessage agentMsg = new AgentMessage("get-tour", profileAgent.getUser());
+            int currentArtifactId = this.artifactsIds.get(this.currentArtifactIndex);
+            
+            // Getting full details for the current artifact
+            ACLMessage requestMessage = new ACLMessage(ACLMessage.REQUEST);
+            requestMessage.addReceiver(new AID("curator", false));
+            
+            AgentMessage agentMsg = new AgentMessage("DET", currentArtifactId);
 
             try {
                 requestMessage.setContentObject(agentMsg);
             } catch (IOException ex) {
-                myLogger.log(Logger.SEVERE, "Exception while sending object message (interests)", ex);
+                myLogger.log(Logger.SEVERE, "Exception while sending object message (artifact id)", ex);
                 return;
             }
             send(requestMessage);
-            
+
             // Getting response from the tour-guide
             ACLMessage  response = myAgent.receive();
             
@@ -151,16 +159,16 @@ public class ProfilerAgent extends Agent {
                 return;
             }
             
-            LinkedList<Integer> artifactIds;
+            Artifact artifact;
             try {
-                artifactIds = (LinkedList<Integer>) response.getContentObject();
+                AgentMessage agentResponse = (AgentMessage) response.getContentObject();
+                artifact = (Artifact) agentResponse.getContent();
             } catch (UnreadableException ex) {
                 myLogger.log(Logger.SEVERE, "Exception while reading received object message (artifacts id)", ex);
                 return;
             }
 
-            VisitingArtifactsBehaviour visitingBehaviour = new VisitingArtifactsBehaviour(myAgent, artifactIds);
-            myAgent.addBehaviour(visitingBehaviour);
+            myLogger.log(Logger.INFO, "* Visiting artifact '" + artifact.getName() + "' made by '" + artifact + "'");
         }
     } // END of inner class RequestVirtualTourBehaviour
     
