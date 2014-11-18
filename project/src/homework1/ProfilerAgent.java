@@ -317,7 +317,7 @@ public class ProfilerAgent extends Agent {
                             Iterator it = dfd.getAllServices();
                             while (it.hasNext()) {
                                 ServiceDescription sd = (ServiceDescription) it.next();
-                                if (sd.getType().equals("TourGuideAgent") && !agent.isTourGuideKnown(provider)) {
+                                if (sd.getType().equals("TourGuideBuilder") && !agent.isTourGuideKnown(provider)) {
                                     agent.getLogger().log(Logger.INFO, "- New service published: \""+sd.getName()+"\" provided by agent "+provider.getName());
                                     agent.addTourGuideService(provider);
                                 }
