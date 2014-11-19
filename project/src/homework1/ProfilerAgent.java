@@ -26,12 +26,15 @@ package homework1;
 
 import homework1.model.Artifact;
 import homework1.model.ArtifactCategory;
+import homework1.model.ArtifactDescription;
+import homework1.model.AuctionDescription;
 import homework1.model.Gender;
 import homework1.model.User;
 import homework1.model.Occupation;
 import jade.core.AID;
 
 import jade.core.Agent;
+import jade.core.behaviours.CyclicBehaviour;
 import jade.core.behaviours.OneShotBehaviour;
 import jade.core.behaviours.SequentialBehaviour;
 import jade.core.behaviours.WakerBehaviour;
@@ -46,8 +49,10 @@ import jade.proto.SubscriptionInitiator;
 import jade.util.Logger;
 import jade.util.leap.Iterator;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
 import java.util.logging.Level;
 
@@ -56,6 +61,7 @@ public class ProfilerAgent extends Agent {
     private Logger myLogger = Logger.getJADELogger(getClass().getName());
     private List<AID> tourGuideAgents = new LinkedList<AID>();
     private AID selectedTourGuideAgent = null;
+    private Map<Integer, Double> currentAuctions = new HashMap<Integer, Double>();
 
     private User user;
     public ProfilerAgent() {
@@ -234,6 +240,94 @@ public class ProfilerAgent extends Agent {
         }
     } // END of inner class RequestVirtualTourBehaviour
     
+    /**
+     * Dutch Auction behaviour for a buyer agent
+     */
+    private class DutchAuctionBuyerBehaviour extends CyclicBehaviour {
+        /**
+         * Constructor
+         * @param a Agent
+         */
+        public DutchAuctionBuyerBehaviour(Agent a) {
+            super(a);
+        }
+
+        @Override
+        public void action() {
+            ACLMessage  msg = myAgent.blockingReceive();
+            
+            if(msg != null){
+                if(msg.getPerformative() == ACLMessage.INFORM){
+                    Object content = null;
+                    try {
+                        content = msg.getContentObject();
+                    } catch (UnreadableException ex) {
+                        java.util.logging.Logger.getLogger(CuratorAgent.class.getName()).log(Level.SEVERE, "Could not read object content from message", ex);
+                    }
+                    
+                    if(content != null && content instanceof AgentMessage){
+                        AgentMessage message = (AgentMessage)content;
+                        
+                        //Auction initialization
+                        if(message.getType().equals("auction-start")){
+                            int artifactID = ((AuctionDescription)message.getContent()).getArtifactID();
+                            double price = estimatePrice((Artifact)message.getContent());
+                            currentAuctions.put(artifactID, price);
+                            myLogger.log(Logger.INFO, String.format("Agent {0} - Auction started for artifact {1}. Estimated price: {2}",
+                                    getLocalName(), artifactID, price));
+                        //Auction price notifications
+                        } else if(message.getType().equals("auction-price")){
+                            int artifactID = ((AuctionDescription)message.getContent()).getArtifactID();
+                            double price = ((AuctionDescription)message.getContent()).getPrice();
+                            if(price < currentAuctions.get(artifactID)) {
+                                ACLMessage reply = msg.createReply();
+                                reply.setPerformative(ACLMessage.PROPOSE);
+                                try {
+                                    reply.setContentObject(new AgentMessage("auction-accept", message.getContent()));
+                                } catch (IOException ex) {
+                                    java.util.logging.Logger.getLogger(ProfilerAgent.class.getName()).log(Level.SEVERE, "Could not serialize auction acceptance", ex);
+                                }
+                            }
+                        //Auction end: no bids
+                        } else if(message.getType().equals("auction-end")){
+                            currentAuctions.remove(((Artifact)message.getContent()).getId());   
+                            myLogger.log(Logger.INFO, String.format("Agent {0} - Auction ended for artifact {1}",
+                                    getLocalName(), ((Artifact)message.getContent()).getId()));
+                        }
+                        else {
+                            myLogger.log(Logger.INFO, "Agent {0} - Unexpected request type [{1}] received", new Object[]{getLocalName(), message.getType()});
+                            ACLMessage reply = msg.createReply();
+                            reply.setPerformative(ACLMessage.REFUSE);
+                            reply.setContent("(UnexpectedType ("+message.getType()+"))");
+                        }
+                    }
+                    else{
+                        myLogger.log(Logger.INFO, "Agent {0} - Unexpected request [{1}] received from {2}", new Object[]{getLocalName(), content, msg.getSender().getLocalName()});
+                        ACLMessage reply = msg.createReply();
+                        reply.setPerformative(ACLMessage.NOT_UNDERSTOOD);
+                        reply.setContent("(UnexpectedContent ("+content+"))");
+                        send(reply);
+                    }
+
+                } else if(msg.getPerformative() == ACLMessage.ACCEPT_PROPOSAL) {
+                    myLogger.log(Logger.INFO, "Agent {0} - Proposal accepted!", getLocalName());
+                } else if(msg.getPerformative() == ACLMessage.REJECT_PROPOSAL) {
+                    myLogger.log(Logger.INFO, "Agent {0} - Proposal rejected!", getLocalName());
+                }
+                else {
+                    myLogger.log(Logger.INFO, "Agent {0} - Unexpected message [{1}] received from {2}", new Object[]{getLocalName(), ACLMessage.getPerformative(msg.getPerformative()), msg.getSender().getLocalName()});
+                    ACLMessage reply = msg.createReply();
+                    reply.setPerformative(ACLMessage.NOT_UNDERSTOOD);
+                    reply.setContent("( (Unexpected-act "+ACLMessage.getPerformative(msg.getPerformative())+") )");   
+                    send(reply);
+                }
+            }
+            else {
+                block();
+            }
+        }
+    }
+    
     protected void setup() {
         // Getting arguments
         // Example arguments: MALE,UNEMPLOYED,21,Mythology,Science
@@ -298,6 +392,7 @@ public class ProfilerAgent extends Agent {
         
         //Sending tour guide request to the selected agent
         addBehaviour(new RequestVirtualTourBehaviour(this, this.selectedTourGuideAgent));
+        addBehaviour(new DutchAuctionBuyerBehaviour(this));
         
         //Agent subscription to the DF in order to get notified when a new
         //service according to the specified template is published
@@ -331,6 +426,25 @@ public class ProfilerAgent extends Agent {
                 }
             }
         } );
+        
+        //HW2
+        this.auctionRegistration();
+    }
+    
+    //HW2
+    private void auctionRegistration() {
+        ACLMessage requestMessage = new ACLMessage(ACLMessage.REQUEST);
+        requestMessage.addReceiver(new AID("curator", false));
+
+        AgentMessage agentMsg = new AgentMessage("auction-registration", getName());
+
+        try {
+            requestMessage.setContentObject(agentMsg);
+        } catch (IOException ex) {
+            myLogger.log(Logger.SEVERE, "Exception while registering to auction", ex);
+            return;
+        }
+        send(requestMessage);
     }
 }
 
