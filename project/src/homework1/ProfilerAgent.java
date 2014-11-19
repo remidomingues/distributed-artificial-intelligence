@@ -50,6 +50,7 @@ import jade.util.Logger;
 import jade.util.leap.Iterator;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.Calendar;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -327,7 +328,15 @@ public class ProfilerAgent extends Agent {
             }
         }
     }
-    
+   
+    // Price estimate
+    protected Double estimatePrice(Artifact artifact) {
+        Calendar today = Calendar.getInstance();  
+        int age = today.get(Calendar.YEAR) - artifact.getCreatedAt().get(Calendar.YEAR);
+        double interestValue = (this.user.getInterests().contains(artifact.getCategory())) ? 100 : 0;
+        return 50.0 + 10.0 * age + 20.0 * Math.random() + interestValue;
+    }
+
     protected void setup() {
         // Getting arguments
         // Example arguments: MALE,UNEMPLOYED,21,Mythology,Science
