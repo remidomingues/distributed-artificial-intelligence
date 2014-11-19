@@ -46,6 +46,7 @@ import jade.proto.SubscriptionInitiator;
 import jade.util.Logger;
 import jade.util.leap.Iterator;
 import java.io.IOException;
+import java.util.Calendar;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Scanner;
@@ -233,6 +234,14 @@ public class ProfilerAgent extends Agent {
             }
         }
     } // END of inner class RequestVirtualTourBehaviour
+    
+    // Price estimate
+    protected Double estimatePrice(Artifact artifact) {
+        Calendar today = Calendar.getInstance();  
+        int age = today.get(Calendar.YEAR) - artifact.getCreatedAt().get(Calendar.YEAR);
+        return 50.0 + 10.0 * age + 20.0 * Math.random();
+    }
+    
     
     protected void setup() {
         // Getting arguments
