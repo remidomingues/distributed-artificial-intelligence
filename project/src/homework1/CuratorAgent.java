@@ -28,6 +28,7 @@ import homework1.model.Artifact;
 import homework1.model.ArtifactCategory;
 import homework1.model.ArtifactDescription;
 import homework1.model.ArtifactGenre;
+import homework1.model.AuctionDescription;
 import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.CyclicBehaviour;
@@ -228,16 +229,41 @@ public class CuratorAgent extends Agent {
                     curatorAgent.getSubscribedAgents().add(msg.getSender().getName());
                 } else if (agentMessage.getType() == "auction-accept" && msg.getPerformative() == ACLMessage.PROPOSE) {
                     // Checking that the proposal matches the current price
-                    // ...
+                    AuctionDescription auctionDescription = (AuctionDescription) agentMessage.getContent();
+                    
+                    if (auctionDescription.getPrice() != this.currentPrice) {
+                        // The price is different from the current bidding price, rejecting the proposal
+                        ACLMessage reply = msg.createReply();
+                        reply.addReceiver(msg.getSender());
+                        reply.setPerformative(ACLMessage.REJECT_PROPOSAL);
+                        try {
+                            reply.setContentObject(new AgentMessage("wrong-price", auctionDescription));
+                        } catch (IOException ex) {
+                            myLogger.log(Level.SEVERE, null, ex);
+                        }
+                        send(reply);
+                        return;
+                    }
 
-                    // Broadcasting a message informing all the subscribed agents that the auction ended
+                    // Letting the agent know that his proposal was accepted
                     ACLMessage reply = msg.createReply();
-                    reply.setPerformative(ACLMessage.INFORM);
-                    reply.setContent("Auction ended");
-                    for (String agentName : curatorAgent.getSubscribedAgents()) {
-                        reply.addReceiver(new AID(agentName, false));
+                    reply.addReceiver(msg.getSender());
+                    reply.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
+                    try {
+                        reply.setContentObject(new AgentMessage("accepted-bid", auctionDescription));
+                    } catch (IOException ex) {
+                        myLogger.log(Level.SEVERE, null, ex);
                     }
                     send(reply);
+                    
+                    // Broadcasting a message informing all the subscribed agents that the auction ended
+                    ACLMessage broadcastedReply = msg.createReply();
+                    broadcastedReply.setPerformative(ACLMessage.INFORM);
+                    broadcastedReply.setContent("Auction ended");
+                    for (String agentName : curatorAgent.getSubscribedAgents()) {
+                        broadcastedReply.addReceiver(new AID(agentName, false));
+                    }
+                    send(broadcastedReply);
                 } else {
                     myLogger.log(Logger.INFO, "Agent " + getLocalName() + " - Unexpected message [" + ACLMessage.getPerformative(msg.getPerformative()) + "] received from " + msg.getSender().getLocalName());
                     return;
