@@ -288,6 +288,8 @@ public class ProfilerAgent extends Agent {
                                 } catch (IOException ex) {
                                     java.util.logging.Logger.getLogger(ProfilerAgent.class.getName()).log(Level.SEVERE, "Could not serialize auction acceptance", ex);
                                 }
+                                myLogger.log(Logger.INFO, String.format("Agent {0} - Auction proposal for artifact {1}: {2}",
+                                        getLocalName(), artifactID, price));
                             }
                         //Auction end: no bids
                         } else if(message.getType().equals("auction-end")){
@@ -311,9 +313,11 @@ public class ProfilerAgent extends Agent {
                     }
 
                 } else if(msg.getPerformative() == ACLMessage.ACCEPT_PROPOSAL) {
-                    myLogger.log(Logger.INFO, "Agent {0} - Proposal accepted!", getLocalName());
+                    myLogger.log(Logger.INFO, "Agent {0} - Proposal accepted for artifact {1}!",
+                            new Object[] {getLocalName(), ((AuctionDescription)((AgentMessage)msg.getContentObject()).getContent()).getArtifactID()});
                 } else if(msg.getPerformative() == ACLMessage.REJECT_PROPOSAL) {
-                    myLogger.log(Logger.INFO, "Agent {0} - Proposal rejected!", getLocalName());
+                    myLogger.log(Logger.INFO, "Agent {0} - Proposal rejected for artifact {1}!",
+                            new Object[] {getLocalName(), ((AuctionDescription)((AgentMessage)msg.getContentObject()).getContent()).getArtifactID()});
                 }
                 else {
                     myLogger.log(Logger.INFO, "Agent {0} - Unexpected message [{1}] received from {2}", new Object[]{getLocalName(), ACLMessage.getPerformative(msg.getPerformative()), msg.getSender().getLocalName()});
