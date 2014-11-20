@@ -250,14 +250,15 @@ public class CuratorAgent extends Agent {
                 myLogger.log(Logger.INFO, "Agent {0} - Received <{1}> from {2}", new Object[]{getLocalName(), agentMessage.getType(), msg.getSender().getLocalName()});
                 
                 // Main logic
+                Artifact currentAuction = curatorAgent.getAuctionedArtifact();
                 if (agentMessage.getType().equals("auction-registration") && msg.getPerformative() == ACLMessage.REQUEST) {
                     curatorAgent.getSubscribedAgents().add(msg.getSender().getName());
                 } else if (agentMessage.getType().equals("auction-accept") && msg.getPerformative() == ACLMessage.PROPOSE) {
                     // Checking that the proposal matches the current price
                     AuctionDescription auctionDescription = (AuctionDescription) agentMessage.getContent();
                     
-                    if (auctionDescription.getPrice() != curatorAgent.getCurrentAuctionPrice()) {
-                        // The price is different from the current bidding price, rejecting the proposal
+                    if (currentAuction == null || auctionDescription.getPrice() != curatorAgent.getCurrentAuctionPrice()) {
+                        // The price is different from the current bidding price or there's no auction anymore
                         ACLMessage reply = msg.createReply();
                         reply.setPerformative(ACLMessage.REJECT_PROPOSAL);
                         try {
@@ -270,7 +271,6 @@ public class CuratorAgent extends Agent {
                     }
                     
                     // Ending the auction
-                    Artifact endedAuction = curatorAgent.getAuctionedArtifact();
                     curatorAgent.setAuctionedArtifact(null);
                     
                     // Letting the agent know that his proposal was accepted
@@ -285,7 +285,7 @@ public class CuratorAgent extends Agent {
                     
                     // Broadcasting a message informing all the subscribed agents that the auction ended
                     ACLMessage broadcastedMessage = new ACLMessage(ACLMessage.INFORM);
-                    AgentMessage endMessage = new AgentMessage("auction-end", endedAuction.getId());
+                    AgentMessage endMessage = new AgentMessage("auction-end", currentAuction.getId());
                     try {
                         broadcastedMessage.setContentObject(endMessage);
                     } catch (IOException ex) {
