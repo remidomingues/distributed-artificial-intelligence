@@ -26,7 +26,6 @@ package homework1;
 
 import homework1.model.Artifact;
 import homework1.model.ArtifactCategory;
-import homework1.model.ArtifactDescription;
 import homework1.model.AuctionDescription;
 import homework1.model.Gender;
 import homework1.model.User;

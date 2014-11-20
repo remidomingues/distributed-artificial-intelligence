@@ -33,6 +33,7 @@ import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.CyclicBehaviour;
 import jade.core.behaviours.OneShotBehaviour;
+import jade.core.behaviours.TickerBehaviour;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.UnreadableException;
 import jade.util.Logger;
@@ -65,6 +66,7 @@ public class CuratorAgent extends Agent {
     
     private Artifact auctionedArtifact = null;
     private double currentAuctionPrice;
+    private double currentAuctionReserve;
 
     /**
      * Constructor
@@ -104,7 +106,7 @@ public class CuratorAgent extends Agent {
     static protected double estimatePrice(Artifact artifact) {
         Calendar today = Calendar.getInstance();  
         int age = today.get(Calendar.YEAR) - artifact.getCreatedAt().get(Calendar.YEAR);
-        return 100.0 + 15.0 * age + 30.0 * Math.random();
+        return 50.0 + 10.0 * age + 60.0;
     }
     
     
@@ -133,6 +135,10 @@ public class CuratorAgent extends Agent {
         return currentAuctionPrice;
     }
 
+    public double getCurrentAuctionReserve() {
+        return currentAuctionReserve;
+    }
+    
     public void setAuctionedArtifact(Artifact auctionedArtifact) {
         this.auctionedArtifact = auctionedArtifact;
     }
@@ -140,10 +146,11 @@ public class CuratorAgent extends Agent {
     public void setCurrentAuctionPrice(double currentAuctionPrice) {
         this.currentAuctionPrice = currentAuctionPrice;
     }
-    
-    
-    
 
+    public void setCurrentAuctionReserve(double currentAuctionReserve) {
+        this.currentAuctionReserve = currentAuctionReserve;
+    }
+    
     /**
      * Wait for an ACLMessage request and answer it according to the request
      * defined for the given agent
@@ -261,7 +268,11 @@ public class CuratorAgent extends Agent {
                         send(reply);
                         return;
                     }
-
+                    
+                    // Ending the auction
+                    Artifact endedAuction = curatorAgent.getAuctionedArtifact();
+                    curatorAgent.setAuctionedArtifact(null);
+                    
                     // Letting the agent know that his proposal was accepted
                     ACLMessage reply = msg.createReply();
                     reply.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
@@ -274,11 +285,17 @@ public class CuratorAgent extends Agent {
                     
                     // Broadcasting a message informing all the subscribed agents that the auction ended
                     ACLMessage broadcastedMessage = new ACLMessage(ACLMessage.INFORM);
-                    broadcastedMessage.setContent("Auction ended");
+                    AgentMessage endMessage = new AgentMessage("auction-end", endedAuction.getId());
+                    try {
+                        broadcastedMessage.setContentObject(endMessage);
+                    } catch (IOException ex) {
+                        myLogger.log(Level.SEVERE, null, ex);
+                    }
                     for (String agentName : curatorAgent.getSubscribedAgents()) {
                         broadcastedMessage.addReceiver(new AID(agentName, false));
                     }
                     send(broadcastedMessage);
+                    
                 } else {
                     myLogger.log(Logger.INFO, "Agent " + getLocalName() + " - Unexpected message [" + ACLMessage.getPerformative(msg.getPerformative()) + "] received from " + msg.getSender().getLocalName());
                     return;
@@ -303,30 +320,15 @@ public class CuratorAgent extends Agent {
             @Override
             public void action() {
                 CuratorAgent curatorAgent = (CuratorAgent) myAgent;
-                ACLMessage  msg = myAgent.blockingReceive();
-
-
-                if (msg == null){
-                    block();
-                    return;
-                }
-
-                AgentMessage agentMessage;
-                try {
-                    agentMessage = (AgentMessage) msg.getContentObject();
-                } catch (UnreadableException ex) {
-                    myLogger.log(Logger.SEVERE, "Exception while reading received object message (artifacts id)", ex);
-                    return;
-                }
-
-                myLogger.log(Logger.INFO, "Agent {0} - Received <{1}> from {2}", new Object[]{getLocalName(), agentMessage.getType(), msg.getSender().getLocalName()});
-                
-                // Main logic
                 
                 // Picking the auctionned artifact
                 Artifact auctionnedArtifact = (Artifact) CuratorAgent.pickRandom(curatorAgent.getArtifacts().toArray(), new Random());
+                
+                // Estimating the initial auction price and it's reserve (minimum price)
                 curatorAgent.setAuctionedArtifact(auctionnedArtifact);
-                curatorAgent.setCurrentAuctionPrice(CuratorAgent.estimatePrice(auctionedArtifact));
+                double estimatedPrice = CuratorAgent.estimatePrice(auctionedArtifact);
+                curatorAgent.setCurrentAuctionPrice(estimatedPrice*2.0);
+                curatorAgent.setCurrentAuctionReserve(estimatedPrice*0.3);
                 
                 // Sending an "auction-start" to all subscribed agents
                 ACLMessage broadcastedMessage = new ACLMessage(ACLMessage.INFORM);
@@ -342,14 +344,73 @@ public class CuratorAgent extends Agent {
                 send(broadcastedMessage);
           
                 // Starting a ticker behaviour that reduces the price of the
-                // auctionned object after a while
-                
-                // TODO
+                // auctionned object multiple times unless the auction finishes
+                // or the minimum price is reached   
+                curatorAgent.addBehaviour(new CuratorAuctionRound(curatorAgent));
 
             }
         }
+        
+        
+   
+        /**
+         * A behaviour that models the auction's rounds.
+         * At each tick, the price of the auctionned artifact is lowered
+         * if the auction is still going on
+         */
+        private class CuratorAuctionRound extends TickerBehaviour {
+            static private final long ROUND_DURATION = 3000;
             
-            
+            /**
+             * Constructor
+             * @param a Agent
+             */            
+            public CuratorAuctionRound(Agent a) {
+                super(a, ROUND_DURATION);
+            }
+
+            @Override
+            public void onTick() {
+                CuratorAgent curatorAgent = (CuratorAgent) myAgent;
+                
+                // If the current auction have finished...
+                if (curatorAgent.getAuctionedArtifact() == null) {
+                    // Launching a new auction
+                    curatorAgent.addBehaviour(new CuratorStartAuction(curatorAgent));
+                    this.done();
+                    return;
+                }
+                
+                
+                // Updating the auction's price
+                double auctionPrice = curatorAgent.getCurrentAuctionPrice() * 0.9;
+                
+                // If the decreased price is still higher than the reserve...
+                if (auctionPrice > curatorAgent.getCurrentAuctionReserve()) {
+                    curatorAgent.setCurrentAuctionPrice(auctionPrice);
+                } else {
+                    // If the price is lower than the reserve, we inform everyone that the auction ended
+                    Artifact endedAuction = curatorAgent.getAuctionedArtifact();
+                    curatorAgent.setAuctionedArtifact(null);
+                    
+                    // Broadcasting a message informing all the subscribed agents that the auction ended
+                    ACLMessage broadcastedMessage = new ACLMessage(ACLMessage.INFORM);
+                    AgentMessage endMessage = new AgentMessage("auction-end", endedAuction.getId());
+                    try {
+                        broadcastedMessage.setContentObject(endMessage);
+                    } catch (IOException ex) {
+                        myLogger.log(Level.SEVERE, null, ex);
+                    }
+                    for (String agentName : curatorAgent.getSubscribedAgents()) {
+                        broadcastedMessage.addReceiver(new AID(agentName, false));
+                    }
+                    send(broadcastedMessage);
+                }
+             
+                
+            }
+        }
+   
         /**
          * Parse an artifact selection request and build the appropriate answer
          * @param reply
