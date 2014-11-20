@@ -271,7 +271,7 @@ public class ProfilerAgent extends Agent {
                         
                         //Auction initialization
                         if(message.getType().equals("auction-start")){
-                            int artifactID = ((AuctionDescription)message.getContent()).getArtifactID();
+                            int artifactID = ((Artifact)message.getContent()).getId();
                             double price = estimatePrice((Artifact)message.getContent());
                             currentAuctions.put(artifactID, price);
                             myLogger.log(Logger.INFO, String.format("Agent {0} - Auction started for artifact {1}. Estimated price: {2}",
@@ -313,11 +313,19 @@ public class ProfilerAgent extends Agent {
                     }
 
                 } else if(msg.getPerformative() == ACLMessage.ACCEPT_PROPOSAL) {
-                    myLogger.log(Logger.INFO, "Agent {0} - Proposal accepted for artifact {1}!",
-                            new Object[] {getLocalName(), ((AuctionDescription)((AgentMessage)msg.getContentObject()).getContent()).getArtifactID()});
+                    try {
+                        myLogger.log(Logger.INFO, "Agent {0} - Proposal accepted for artifact {1}!",
+                                new Object[] {getLocalName(), ((AuctionDescription)((AgentMessage)msg.getContentObject()).getContent()).getArtifactID()});
+                    } catch (UnreadableException ex) {
+                        java.util.logging.Logger.getLogger(ProfilerAgent.class.getName()).log(Level.SEVERE, null, ex);
+                    }
                 } else if(msg.getPerformative() == ACLMessage.REJECT_PROPOSAL) {
-                    myLogger.log(Logger.INFO, "Agent {0} - Proposal rejected for artifact {1}!",
-                            new Object[] {getLocalName(), ((AuctionDescription)((AgentMessage)msg.getContentObject()).getContent()).getArtifactID()});
+                    try {
+                        myLogger.log(Logger.INFO, "Agent {0} - Proposal rejected for artifact {1}!",
+                                new Object[] {getLocalName(), ((AuctionDescription)((AgentMessage)msg.getContentObject()).getContent()).getArtifactID()});
+                    } catch (UnreadableException ex) {
+                        java.util.logging.Logger.getLogger(ProfilerAgent.class.getName()).log(Level.SEVERE, null, ex);
+                    }
                 }
                 else {
                     myLogger.log(Logger.INFO, "Agent {0} - Unexpected message [{1}] received from {2}", new Object[]{getLocalName(), ACLMessage.getPerformative(msg.getPerformative()), msg.getSender().getLocalName()});
@@ -449,7 +457,7 @@ public class ProfilerAgent extends Agent {
         ACLMessage requestMessage = new ACLMessage(ACLMessage.REQUEST);
         requestMessage.addReceiver(new AID("curator", false));
 
-        AgentMessage agentMsg = new AgentMessage("auction-registration", getName());
+        AgentMessage agentMsg = new AgentMessage("auction-registration", getAID());
 
         try {
             requestMessage.setContentObject(agentMsg);
