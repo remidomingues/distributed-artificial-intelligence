@@ -96,11 +96,15 @@ public class CuratorAgent extends Agent {
 
             artifacts.put(i, new Artifact(i, artifactName, authorName, new GregorianCalendar(year, month, day), place, genre, category));
         }
+    }
+    
+    protected void setup() {
         Object[] args = getArguments();
-
-        if(args != null && args.length == 1 && args[0].toString() == "auction") {
+        
+        if(args != null && args.length == 1 && args[0].equals("auction")) {
             this.auctionBehaviour = true;
         }
+        myLogger.log(Logger.INFO, "Auction behaviour: " + this.auctionBehaviour);
         
         if(this.auctionBehaviour) {
             this.addBehaviour(new CuratorStartAuction(this));

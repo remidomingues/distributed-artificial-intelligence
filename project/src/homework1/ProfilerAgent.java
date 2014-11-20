@@ -358,22 +358,26 @@ public class ProfilerAgent extends Agent {
         // Example arguments: MALE,UNEMPLOYED,21,Mythology,Science
         Object[] args = getArguments();
 
-        if (args == null || args.length != 4) {
-            myLogger.log(Logger.SEVERE, "Didn't pass enough arguments to the Profile Agent, falling back to default arguments.");
+        if (args == null || args.length < 5) {
+            if(args.length == 1 && args[0].equals("auction")) {
+                this.auctionBehaviour = true;
+            }
+            myLogger.log(Logger.INFO, "Didn't pass enough arguments to the Profile Agent, falling back to default arguments.");
             // Putting default parameters
-            String[] defaultArguments = {"MALE", "UNEMPLOYED", "21", "Mythology", "Science"};
+            String[] defaultArguments = {"false", "MALE", "UNEMPLOYED", "21", "Mythology", "Science"};
             args = (Object[]) defaultArguments;
-        } else if(args.length == 1 && args[0].toString() == "auction") {
-            this.auctionBehaviour = true;
+            
         }
+        
+        myLogger.log(Logger.INFO, "Auction behaviour: " + this.auctionBehaviour);
 
-        Gender gender = Gender.valueOf((String) args[0]);
-        Occupation occupation = Occupation.valueOf((String) args[1]);
-        int age = Integer.parseInt((String) args[2]);
+        Gender gender = Gender.valueOf((String) args[1]);
+        Occupation occupation = Occupation.valueOf((String) args[2]);
+        int age = Integer.parseInt((String) args[3]);
         
         LinkedList<ArtifactCategory> interests = new LinkedList<>();
           
-        for (int i = 3; i < args.length; i++) {
+        for (int i = 4; i < args.length; i++) {
             String interest = (String) args[i];
             interests.add(ArtifactCategory.valueOf(interest));
         }
