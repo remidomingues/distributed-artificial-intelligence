@@ -32,6 +32,7 @@ import homework1.model.AuctionDescription;
 import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.CyclicBehaviour;
+import jade.core.behaviours.OneShotBehaviour;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.UnreadableException;
 import jade.util.Logger;
@@ -62,16 +63,12 @@ public class CuratorAgent extends Agent {
     /** List of agents subscribed to the auction **/
     private Set<String> subscribedAgents = new HashSet<>();
     
-    private Artifact auctionedArtifact;
+    private Artifact auctionedArtifact = null;
     private double currentAuctionPrice;
 
     /**
      * Constructor
      */
-    
-    private Object pickRandom(Object[] objects, Random random) {
-        return objects[new Random().nextInt(objects.length)];
-    }
     public CuratorAgent() {
         artifacts.put(1, new Artifact(1, "Mario Bros", "Shigeru Miyamoto", new GregorianCalendar(1983, 1, 1), "Japan", ArtifactGenre.Game, ArtifactCategory.Science));
         artifacts.put(2, new Artifact(2, "Le Penseur", "Auguste Rodin", new GregorianCalendar(1902, 1, 1), "France", ArtifactGenre.Sculpture, ArtifactCategory.Philosophy));
@@ -100,6 +97,17 @@ public class CuratorAgent extends Agent {
         myLogger.log(Logger.INFO, "Curator Agent initialized");
     }
     
+    static public Object pickRandom(Object[] objects, Random random) {
+        return objects[new Random().nextInt(objects.length)];
+    }
+
+    static protected double estimatePrice(Artifact artifact) {
+        Calendar today = Calendar.getInstance();  
+        int age = today.get(Calendar.YEAR) - artifact.getCreatedAt().get(Calendar.YEAR);
+        return 100.0 + 15.0 * age + 30.0 * Math.random();
+    }
+    
+    
     /**
      * Return a collection of artifacts
      * @return A collection of artifacts
@@ -124,7 +132,18 @@ public class CuratorAgent extends Agent {
     public double getCurrentAuctionPrice() {
         return currentAuctionPrice;
     }
+
+    public void setAuctionedArtifact(Artifact auctionedArtifact) {
+        this.auctionedArtifact = auctionedArtifact;
+    }
+
+    public void setCurrentAuctionPrice(double currentAuctionPrice) {
+        this.currentAuctionPrice = currentAuctionPrice;
+    }
     
+    
+    
+
     /**
      * Wait for an ACLMessage request and answer it according to the request
      * defined for the given agent
@@ -191,24 +210,15 @@ public class CuratorAgent extends Agent {
         
         
         /**
-         * Wait for an ACLMessage request and answer it according to the request
-         * defined for the given agent
+         * Interacts with the profiling agents bidding on an auction
          */
         private class CuratorAuctioningBehaviour extends CyclicBehaviour {
             /**
              * Constructor
              * @param a Agent
-             */
-            
-            
+             */            
             public CuratorAuctioningBehaviour(Agent a) {
                 super(a);
-            }
-            
-            private double estimatePrice(Artifact artifact) {
-                Calendar today = Calendar.getInstance();  
-                int age = today.get(Calendar.YEAR) - artifact.getCreatedAt().get(Calendar.YEAR);
-                return 100.0 + 15.0 * age + 30.0 * Math.random();
             }
 
             @Override
@@ -242,7 +252,6 @@ public class CuratorAgent extends Agent {
                     if (auctionDescription.getPrice() != curatorAgent.getCurrentAuctionPrice()) {
                         // The price is different from the current bidding price, rejecting the proposal
                         ACLMessage reply = msg.createReply();
-                        reply.addReceiver(msg.getSender());
                         reply.setPerformative(ACLMessage.REJECT_PROPOSAL);
                         try {
                             reply.setContentObject(new AgentMessage("wrong-price", auctionDescription));
@@ -255,7 +264,6 @@ public class CuratorAgent extends Agent {
 
                     // Letting the agent know that his proposal was accepted
                     ACLMessage reply = msg.createReply();
-                    reply.addReceiver(msg.getSender());
                     reply.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
                     try {
                         reply.setContentObject(new AgentMessage("accepted-bid", auctionDescription));
@@ -265,17 +273,78 @@ public class CuratorAgent extends Agent {
                     send(reply);
                     
                     // Broadcasting a message informing all the subscribed agents that the auction ended
-                    ACLMessage broadcastedReply = msg.createReply();
-                    broadcastedReply.setPerformative(ACLMessage.INFORM);
-                    broadcastedReply.setContent("Auction ended");
+                    ACLMessage broadcastedMessage = new ACLMessage(ACLMessage.INFORM);
+                    broadcastedMessage.setContent("Auction ended");
                     for (String agentName : curatorAgent.getSubscribedAgents()) {
-                        broadcastedReply.addReceiver(new AID(agentName, false));
+                        broadcastedMessage.addReceiver(new AID(agentName, false));
                     }
-                    send(broadcastedReply);
+                    send(broadcastedMessage);
                 } else {
                     myLogger.log(Logger.INFO, "Agent " + getLocalName() + " - Unexpected message [" + ACLMessage.getPerformative(msg.getPerformative()) + "] received from " + msg.getSender().getLocalName());
                     return;
                 }
+
+            }
+        }
+            
+   
+        /**
+         * Starts an auction on one of the curator's artifacts
+         */
+        private class CuratorStartAuction extends OneShotBehaviour {
+            /**
+             * Constructor
+             * @param a Agent
+             */            
+            public CuratorStartAuction(Agent a) {
+                super(a);
+            }
+
+            @Override
+            public void action() {
+                CuratorAgent curatorAgent = (CuratorAgent) myAgent;
+                ACLMessage  msg = myAgent.blockingReceive();
+
+
+                if (msg == null){
+                    block();
+                    return;
+                }
+
+                AgentMessage agentMessage;
+                try {
+                    agentMessage = (AgentMessage) msg.getContentObject();
+                } catch (UnreadableException ex) {
+                    myLogger.log(Logger.SEVERE, "Exception while reading received object message (artifacts id)", ex);
+                    return;
+                }
+
+                myLogger.log(Logger.INFO, "Agent {0} - Received <{1}> from {2}", new Object[]{getLocalName(), agentMessage.getType(), msg.getSender().getLocalName()});
+                
+                // Main logic
+                
+                // Picking the auctionned artifact
+                Artifact auctionnedArtifact = (Artifact) CuratorAgent.pickRandom(curatorAgent.getArtifacts().toArray(), new Random());
+                curatorAgent.setAuctionedArtifact(auctionnedArtifact);
+                curatorAgent.setCurrentAuctionPrice(CuratorAgent.estimatePrice(auctionedArtifact));
+                
+                // Sending an "auction-start" to all subscribed agents
+                ACLMessage broadcastedMessage = new ACLMessage(ACLMessage.INFORM);
+                AgentMessage auctionStart = new AgentMessage("auction-start", auctionnedArtifact);
+                try {
+                    broadcastedMessage.setContentObject(auctionStart);
+                } catch (IOException ex) {
+                    myLogger.log(Level.SEVERE, null, ex);
+                }
+                for (String agentName : curatorAgent.getSubscribedAgents()) {
+                    broadcastedMessage.addReceiver(new AID(agentName, false));
+                }
+                send(broadcastedMessage);
+          
+                // Starting a ticker behaviour that reduces the price of the
+                // auctionned object after a while
+                
+                // TODO
 
             }
         }
