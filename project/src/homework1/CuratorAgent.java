@@ -184,7 +184,6 @@ public class CuratorAgent extends Agent {
             CuratorAgent curatorAgent = (CuratorAgent) myAgent;
             ACLMessage  msg = myAgent.blockingReceive();
 
-
             if (msg == null){
                 block();
                 return;
@@ -252,7 +251,6 @@ public class CuratorAgent extends Agent {
         }
     }
 
-
     /**
      * Starts an auction on one of the curator's artifacts
      */
@@ -295,7 +293,6 @@ public class CuratorAgent extends Agent {
             // auctionned object multiple times unless the auction finishes
             // or the minimum price is reached   
             curatorAgent.addBehaviour(new CuratorAuctionRound(curatorAgent));
-
         }
     }
 

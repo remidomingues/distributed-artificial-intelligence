@@ -270,8 +270,10 @@ public class ProfilerAgent extends Agent {
                         java.util.logging.Logger.getLogger(CuratorAgent.class.getName()).log(Level.SEVERE, "Could not read object content from message", ex);
                     }
                     
-                    if(content != null && content instanceof AgentMessage){
+                    if(content != null && content instanceof AgentMessage){                        
                         AgentMessage message = (AgentMessage)content;
+                        
+                        myLogger.log(Logger.INFO, "Agent {0} - Received <{1}> from {2}", new Object[]{getLocalName(), message.getType(), msg.getSender().getLocalName()});
                         
                         //Auction initialization
                         if(message.getType().equals("auction-start")){
@@ -477,6 +479,7 @@ public class ProfilerAgent extends Agent {
             return;
         }
         send(requestMessage);
+        System.out.println("sent");
     }
 }
 
