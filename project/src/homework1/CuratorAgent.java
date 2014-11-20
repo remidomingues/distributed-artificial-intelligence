@@ -62,6 +62,9 @@ public class CuratorAgent extends Agent {
     /** List of agents subscribed to the auction **/
     private Set<String> subscribedAgents = new HashSet<>();
     
+    private Artifact auctionedArtifact;
+    private double currentAuctionPrice;
+
     /**
      * Constructor
      */
@@ -112,7 +115,16 @@ public class CuratorAgent extends Agent {
     public Set<String> getSubscribedAgents() {
         return this.subscribedAgents;
     }
-        
+
+
+    public Artifact getAuctionedArtifact() {
+        return auctionedArtifact;
+    }
+
+    public double getCurrentAuctionPrice() {
+        return currentAuctionPrice;
+    }
+    
     /**
      * Wait for an ACLMessage request and answer it according to the request
      * defined for the given agent
@@ -188,13 +200,9 @@ public class CuratorAgent extends Agent {
              * @param a Agent
              */
             
-            private Artifact auctionedArtifact;
-            private double currentPrice;
             
-            public CuratorAuctioningBehaviour(Agent a, Artifact artifact) {
+            public CuratorAuctioningBehaviour(Agent a) {
                 super(a);
-                this.auctionedArtifact = artifact;
-                this.currentPrice = this.estimatePrice(this.auctionedArtifact);
             }
             
             private double estimatePrice(Artifact artifact) {
@@ -225,13 +233,13 @@ public class CuratorAgent extends Agent {
                 myLogger.log(Logger.INFO, "Agent {0} - Received <{1}> from {2}", new Object[]{getLocalName(), agentMessage.getType(), msg.getSender().getLocalName()});
                 
                 // Main logic
-                if (agentMessage.getType() == "auction-registration" && msg.getPerformative() == ACLMessage.REQUEST) {
+                if (agentMessage.getType().equals("auction-registration") && msg.getPerformative() == ACLMessage.REQUEST) {
                     curatorAgent.getSubscribedAgents().add(msg.getSender().getName());
-                } else if (agentMessage.getType() == "auction-accept" && msg.getPerformative() == ACLMessage.PROPOSE) {
+                } else if (agentMessage.getType().equals("auction-accept") && msg.getPerformative() == ACLMessage.PROPOSE) {
                     // Checking that the proposal matches the current price
                     AuctionDescription auctionDescription = (AuctionDescription) agentMessage.getContent();
                     
-                    if (auctionDescription.getPrice() != this.currentPrice) {
+                    if (auctionDescription.getPrice() != curatorAgent.getCurrentAuctionPrice()) {
                         // The price is different from the current bidding price, rejecting the proposal
                         ACLMessage reply = msg.createReply();
                         reply.addReceiver(msg.getSender());
