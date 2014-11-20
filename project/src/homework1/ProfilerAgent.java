@@ -62,6 +62,7 @@ public class ProfilerAgent extends Agent {
     private List<AID> tourGuideAgents = new LinkedList<AID>();
     private AID selectedTourGuideAgent = null;
     private Map<Integer, Double> currentAuctions = new HashMap<Integer, Double>();
+    private boolean auctionBehaviour = false;
 
     private User user;
     public ProfilerAgent() {
@@ -197,6 +198,10 @@ public class ProfilerAgent extends Agent {
             
             if (response == null){
                 block();
+                return;
+            }
+            
+            if(response.getSender().getName().contains("df@")) {
                 return;
             }
       
@@ -353,11 +358,13 @@ public class ProfilerAgent extends Agent {
         // Example arguments: MALE,UNEMPLOYED,21,Mythology,Science
         Object[] args = getArguments();
 
-        if (args == null || args.length < 4) {
+        if (args == null || args.length != 4) {
             myLogger.log(Logger.SEVERE, "Didn't pass enough arguments to the Profile Agent, falling back to default arguments.");
             // Putting default parameters
             String[] defaultArguments = {"MALE", "UNEMPLOYED", "21", "Mythology", "Science"};
             args = (Object[]) defaultArguments;
+        } else if(args.length == 1 && args[0].toString() == "auction") {
+            this.auctionBehaviour = true;
         }
 
         Gender gender = Gender.valueOf((String) args[0]);
@@ -373,82 +380,83 @@ public class ProfilerAgent extends Agent {
         
         this.user = new User(gender, occupation, age, interests);
         
-        try {
-            //Look for TourGuideAgents registered to the DF
-            Thread.sleep(1000);
-        } catch (InterruptedException ex) {
-            java.util.logging.Logger.getLogger(ProfilerAgent.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        DFAgentDescription template = new DFAgentDescription();
-        ServiceDescription sd = new ServiceDescription();
-        sd.setType("TourGuideBuilder");
-        template.addServices(sd);
-        try {
-            DFAgentDescription[] result = DFService.search(this, template);
-            tourGuideAgents.clear();
-            for (int i = 0; i < result.length; ++i) {
-                tourGuideAgents.add(result[i].getName());
-            }
-        }
-        catch (FIPAException fe) {
-            fe.printStackTrace();
-        }
-        
-        //User interaction in order to select the right tour guide agent to request
-        Scanner scanner = new Scanner(System.in);
-        while(this.selectedTourGuideAgent == null) {
-            System.out.println("Please select one of the Tour Guide agents below:");
-            int i = 1;
-            for(AID aid : tourGuideAgents) {
-                System.out.println("" + i + " - " + aid.getName());
-                i++;
-            }
+        if(!this.auctionBehaviour) {
             try {
-                this.selectedTourGuideAgent = tourGuideAgents.get(Integer.parseInt(scanner.nextLine())-1);
-            } catch(Exception e) {
-                System.out.println("Invalid agent number.");
+                //Look for TourGuideAgents registered to the DF
+                Thread.sleep(1000);
+            } catch (InterruptedException ex) {
+                java.util.logging.Logger.getLogger(ProfilerAgent.class.getName()).log(Level.SEVERE, null, ex);
             }
-        }
-        
-        //Sending tour guide request to the selected agent
-        addBehaviour(new RequestVirtualTourBehaviour(this, this.selectedTourGuideAgent));
-        addBehaviour(new DutchAuctionBuyerBehaviour(this));
-        
-        //Agent subscription to the DF in order to get notified when a new
-        //service according to the specified template is published
-        SearchConstraints sc = new SearchConstraints();
-        // We want to receive 20 results at most
-        sc.setMaxResults(new Long(20));
+            DFAgentDescription template = new DFAgentDescription();
+            ServiceDescription sd = new ServiceDescription();
+            sd.setType("TourGuideBuilder");
+            template.addServices(sd);
+            try {
+                DFAgentDescription[] result = DFService.search(this, template);
+                tourGuideAgents.clear();
+                for (int i = 0; i < result.length; ++i) {
+                    tourGuideAgents.add(result[i].getName());
+                }
+            }
+            catch (FIPAException fe) {
+                fe.printStackTrace();
+            }
 
-        addBehaviour(new SubscriptionInitiator(this, DFService.createSubscriptionMessage(this, getDefaultDF(), template, sc)) {
-            protected void handleInform(ACLMessage inform) {
-                ProfilerAgent agent = (ProfilerAgent)myAgent;
+            //User interaction in order to select the right tour guide agent to request
+            Scanner scanner = new Scanner(System.in);
+            while(this.selectedTourGuideAgent == null) {
+                System.out.println("Please select one of the Tour Guide agents below:");
+                int i = 1;
+                for(AID aid : tourGuideAgents) {
+                    System.out.println("" + i + " - " + aid.getName());
+                    i++;
+                }
                 try {
-                    DFAgentDescription[] results = DFService.decodeNotification(inform.getContent());
-                    if (results.length > 0) {
-                        for (int i = 0; i < results.length; ++i) {
-                            DFAgentDescription dfd = results[i];
-                            AID provider = dfd.getName();
-                            Iterator it = dfd.getAllServices();
-                            while (it.hasNext()) {
-                                ServiceDescription sd = (ServiceDescription) it.next();
-                                if (sd.getType().equals("TourGuideBuilder") && !agent.isTourGuideKnown(provider)) {
-                                    agent.getLogger().log(Logger.INFO, "- New service published: \""+sd.getName()+"\" provided by agent "+provider.getName());
-                                    agent.addTourGuideService(provider);
+                    this.selectedTourGuideAgent = tourGuideAgents.get(Integer.parseInt(scanner.nextLine())-1);
+                } catch(Exception e) {
+                    System.out.println("Invalid agent number.");
+                }
+            }
+
+            //Sending tour guide request to the selected agent
+            addBehaviour(new RequestVirtualTourBehaviour(this, this.selectedTourGuideAgent));
+            
+            //Agent subscription to the DF in order to get notified when a new
+            //service according to the specified template is published
+            SearchConstraints sc = new SearchConstraints();
+            // We want to receive 20 results at most
+            sc.setMaxResults(new Long(20));
+
+            addBehaviour(new SubscriptionInitiator(this, DFService.createSubscriptionMessage(this, getDefaultDF(), template, sc)) {
+                protected void handleInform(ACLMessage inform) {
+                    ProfilerAgent agent = (ProfilerAgent)myAgent;
+                    try {
+                        DFAgentDescription[] results = DFService.decodeNotification(inform.getContent());
+                        if (results.length > 0) {
+                            for (int i = 0; i < results.length; ++i) {
+                                DFAgentDescription dfd = results[i];
+                                AID provider = dfd.getName();
+                                Iterator it = dfd.getAllServices();
+                                while (it.hasNext()) {
+                                    ServiceDescription sd = (ServiceDescription) it.next();
+                                    if (sd.getType().equals("TourGuideBuilder") && !agent.isTourGuideKnown(provider)) {
+                                        agent.getLogger().log(Logger.INFO, "- New service published: \""+sd.getName()+"\" provided by agent "+provider.getName());
+                                        agent.addTourGuideService(provider);
+                                    }
                                 }
                             }
-                        }
-                    }	
-                    System.out.println();
+                        }	
+                        System.out.println();
+                    }
+                    catch (FIPAException fe) {
+                        fe.printStackTrace();
+                    }
                 }
-                catch (FIPAException fe) {
-                    fe.printStackTrace();
-                }
-            }
-        } );
-        
-        //HW2
-        this.auctionRegistration();
+            } );
+        } else {        
+            addBehaviour(new DutchAuctionBuyerBehaviour(this));
+            this.auctionRegistration();
+        }
     }
     
     //HW2

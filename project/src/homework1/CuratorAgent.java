@@ -67,6 +67,7 @@ public class CuratorAgent extends Agent {
     private Artifact auctionedArtifact = null;
     private double currentAuctionPrice;
     private double currentAuctionReserve;
+    private boolean auctionBehaviour = false;
 
     /**
      * Constructor
@@ -95,8 +96,17 @@ public class CuratorAgent extends Agent {
 
             artifacts.put(i, new Artifact(i, artifactName, authorName, new GregorianCalendar(year, month, day), place, genre, category));
         }
-        this.addBehaviour(new CuratorRequestsHandlingBehaviour(this));
-        //this.addBehaviour(new CuratorStartAuction(this));
+        Object[] args = getArguments();
+
+        if(args != null && args.length == 1 && args[0].toString() == "auction") {
+            this.auctionBehaviour = true;
+        }
+        
+        if(this.auctionBehaviour) {
+            this.addBehaviour(new CuratorStartAuction(this));
+        } else {
+            this.addBehaviour(new CuratorRequestsHandlingBehaviour(this));
+        }
         myLogger.log(Logger.INFO, "Curator Agent initialized");
     }
     
