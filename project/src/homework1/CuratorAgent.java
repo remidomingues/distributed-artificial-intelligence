@@ -65,7 +65,7 @@ public class CuratorAgent extends Agent {
     /** Artifacts data */
     private Map<Integer, Artifact> artifacts = new HashMap<Integer, Artifact>();
     /** List of agents subscribed to the auction **/
-    private Set<String> subscribedAgents = new HashSet<>();
+    private Set<AID> subscribedAgents = new HashSet<>();
     
     private Artifact auctionedArtifact = null;
     private double currentAuctionPrice;
@@ -142,7 +142,7 @@ public class CuratorAgent extends Agent {
      * Return a list of agents that are currently subscribed to the auctioning
      * @return A list of agents' names
      */
-    public Set<String> getSubscribedAgents() {
+    public Set<AID> getSubscribedAgents() {
         return this.subscribedAgents;
     }
 
@@ -188,7 +188,6 @@ public class CuratorAgent extends Agent {
             ACLMessage  msg = myAgent.blockingReceive(10);
 
             if (msg == null){
-                block();
                 return;
             }
 
@@ -196,7 +195,7 @@ public class CuratorAgent extends Agent {
             try {
                 agentMessage = (AgentMessage) msg.getContentObject();
             } catch (UnreadableException ex) {
-                myLogger.log(Logger.SEVERE, "Exception while reading received object message (artifacts id)", ex);
+                myLogger.log(Logger.SEVERE, "Exception while reading received object message", ex);
                 return;
             }
 
@@ -205,7 +204,7 @@ public class CuratorAgent extends Agent {
             // Main logic
             Artifact currentAuction = curatorAgent.getAuctionedArtifact();
             if (agentMessage.getType().equals("auction-registration") && msg.getPerformative() == ACLMessage.REQUEST) {
-                curatorAgent.getSubscribedAgents().add(msg.getSender().getName());
+                curatorAgent.getSubscribedAgents().add(msg.getSender());
             } else if (agentMessage.getType().equals("auction-accept") && msg.getPerformative() == ACLMessage.PROPOSE) {
                 // Checking that the proposal matches the current price
                 AuctionDescription auctionDescription = (AuctionDescription) agentMessage.getContent();
@@ -245,11 +244,10 @@ public class CuratorAgent extends Agent {
                 } catch (IOException ex) {
                     myLogger.log(Level.SEVERE, null, ex);
                 }
-                for (String agentName : curatorAgent.getSubscribedAgents()) {
-                    broadcastedMessage.addReceiver(new AID(agentName, false));
+                for (AID agent : curatorAgent.getSubscribedAgents()) {
+                    broadcastedMessage.addReceiver(agent);
                 }
                 send(broadcastedMessage);
-
             }
 
         }
@@ -291,8 +289,8 @@ public class CuratorAgent extends Agent {
             } catch (IOException ex) {
                 myLogger.log(Level.SEVERE, null, ex);
             }
-            for (String agentName : curatorAgent.getSubscribedAgents()) {
-                broadcastedMessage.addReceiver(new AID(agentName, false));
+            for (AID agent : curatorAgent.getSubscribedAgents()) {
+                broadcastedMessage.addReceiver(agent);
             }
             send(broadcastedMessage);
 
@@ -353,8 +351,8 @@ public class CuratorAgent extends Agent {
                 } catch (IOException ex) {
                     myLogger.log(Level.SEVERE, null, ex);
                 }
-                for (String agentName : curatorAgent.getSubscribedAgents()) {
-                    broadcastedMessage.addReceiver(new AID(agentName, false));
+                for (AID agent : curatorAgent.getSubscribedAgents()) {
+                    broadcastedMessage.addReceiver(agent);
                 }
                 send(broadcastedMessage);
             }
@@ -381,7 +379,7 @@ public class CuratorAgent extends Agent {
         public void action() {
             Integer id = null;
             ACLMessage  msg = myAgent.blockingReceive();
-            if(msg != null){
+            if (msg != null) {
                 ACLMessage reply = msg.createReply();
 
                 if(msg.getPerformative() == ACLMessage.REQUEST){
