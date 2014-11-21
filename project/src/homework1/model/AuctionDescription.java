@@ -5,11 +5,13 @@
  */
 package homework1.model;
 
+import java.io.Serializable;
+
 /**
  * Auction description: price and artifact ID
  * @author Rémi Domingues <remidomingues@live.fr>
  */
-public class AuctionDescription {
+public class AuctionDescription implements Serializable {
     private int artifactID;
     private double price;
 

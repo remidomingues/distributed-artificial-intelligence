@@ -225,7 +225,9 @@ public class CuratorAgent extends Agent {
 
                 // Ending the auction
                 curatorAgent.setAuctionedArtifact(null);
-
+                myLogger.log(Logger.INFO, "Auction proposal from " + msg.getSender().getName() + "accepted");
+                
+                
                 // Letting the agent know that his proposal was accepted
                 ACLMessage reply = msg.createReply();
                 reply.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
@@ -338,6 +340,20 @@ public class CuratorAgent extends Agent {
             // If the decreased price is still higher than the reserve...
             if (auctionPrice > curatorAgent.getCurrentAuctionReserve()) {
                 curatorAgent.setCurrentAuctionPrice(auctionPrice);
+
+                // Broadcasts the new auction price
+                ACLMessage broadcastedMessage = new ACLMessage(ACLMessage.INFORM);
+                AuctionDescription auctionDescription = new AuctionDescription(curatorAgent.getAuctionedArtifact().getId(), auctionPrice);
+                AgentMessage priceMessage = new AgentMessage("auction-price", auctionDescription);
+                try {
+                    broadcastedMessage.setContentObject(priceMessage);
+                } catch (IOException ex) {
+                    myLogger.log(Level.SEVERE, null, ex);
+                }
+                for (AID agent : curatorAgent.getSubscribedAgents()) {
+                    broadcastedMessage.addReceiver(agent);
+                }
+                send(broadcastedMessage);
             } else {
                 // If the price is lower than the reserve, we inform everyone that the auction ended
                 Artifact endedAuction = curatorAgent.getAuctionedArtifact();

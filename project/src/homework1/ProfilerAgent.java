@@ -261,6 +261,9 @@ public class ProfilerAgent extends Agent {
                         } else if(message.getType().equals("auction-price")){
                             int artifactID = ((AuctionDescription)message.getContent()).getArtifactID();
                             double price = ((AuctionDescription)message.getContent()).getPrice();
+                            
+                            myLogger.log(Logger.INFO, "Agent {0} - Auction proposal for artifact {1}: {2} ; Wanted price {3}", new Object[]{getLocalName(), artifactID, price, currentAuctions.get(artifactID)});
+
                             if(price < currentAuctions.get(artifactID)) {
                                 ACLMessage reply = msg.createReply();
                                 reply.setPerformative(ACLMessage.PROPOSE);
@@ -269,14 +272,13 @@ public class ProfilerAgent extends Agent {
                                 } catch (IOException ex) {
                                     java.util.logging.Logger.getLogger(ProfilerAgent.class.getName()).log(Level.SEVERE, "Could not serialize auction acceptance", ex);
                                 }
-                                myLogger.log(Logger.INFO, String.format("Agent {0} - Auction proposal for artifact {1}: {2}",
-                                        getLocalName(), artifactID, price));
+                                myLogger.log(Logger.INFO, "Agent {0} - Auction proposal for artifact {1}: {2}", new Object[]{getLocalName(), artifactID, price});
+                                send(reply);
                             }
                         //Auction end: no bids
                         } else if(message.getType().equals("auction-end")){
-                            currentAuctions.remove(((Artifact)message.getContent()).getId());   
-                            myLogger.log(Logger.INFO, String.format("Agent {0} - Auction ended for artifact {1}",
-                                    getLocalName(), ((Artifact)message.getContent()).getId()));
+                            currentAuctions.remove((Integer) message.getContent());   
+                            myLogger.log(Logger.INFO, "Agent {0} - Auction ended for artifact {1}", new Object[]{getLocalName(), (Integer)message.getContent()});
                         }
                         else {
                             myLogger.log(Logger.INFO, "Agent {0} - Unexpected request type [{1}] received", new Object[]{getLocalName(), message.getType()});
