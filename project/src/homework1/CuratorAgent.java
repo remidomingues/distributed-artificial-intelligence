@@ -34,6 +34,7 @@ import jade.core.Agent;
 import jade.core.behaviours.CyclicBehaviour;
 import jade.core.behaviours.OneShotBehaviour;
 import jade.core.behaviours.TickerBehaviour;
+import jade.core.behaviours.WakerBehaviour;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.UnreadableException;
 import jade.util.Logger;
@@ -107,6 +108,9 @@ public class CuratorAgent extends Agent {
         myLogger.log(Logger.INFO, "Auction behaviour: " + this.auctionBehaviour);
         
         if(this.auctionBehaviour) {
+            // Starting auction messages' handling
+            this.addBehaviour(new CuratorAuctioningBehaviour(this));
+            // Starting a new auction
             this.addBehaviour(new CuratorStartAuction(this));
         } else {
             this.addBehaviour(new CuratorRequestsHandlingBehaviour(this));
@@ -254,17 +258,18 @@ public class CuratorAgent extends Agent {
     /**
      * Starts an auction on one of the curator's artifacts
      */
-    private class CuratorStartAuction extends OneShotBehaviour {
+    private class CuratorStartAuction extends WakerBehaviour {
+        static final long STARTING_DELAY = 2000;
+        
         /**
          * Constructor
          * @param a Agent
          */            
         public CuratorStartAuction(Agent a) {
-            super(a);
+            super(a, STARTING_DELAY);
         }
 
-        @Override
-        public void action() {
+        public void onWake() {
             CuratorAgent curatorAgent = (CuratorAgent) myAgent;
 
             // Picking the auctionned artifact

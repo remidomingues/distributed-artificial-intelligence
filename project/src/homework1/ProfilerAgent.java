@@ -360,10 +360,10 @@ public class ProfilerAgent extends Agent {
         // Example arguments: MALE,UNEMPLOYED,21,Mythology,Science
         Object[] args = getArguments();
 
+        if(args != null && args.length == 1 && args[0].equals("auction")) {
+            this.auctionBehaviour = true;
+        }
         if (args == null || args.length < 5) {
-            if(args.length == 1 && args[0].equals("auction")) {
-                this.auctionBehaviour = true;
-            }
             myLogger.log(Logger.INFO, "Didn't pass enough arguments to the Profile Agent, falling back to default arguments.");
             // Putting default parameters
             String[] defaultArguments = {"false", "MALE", "UNEMPLOYED", "21", "Mythology", "Science"};
