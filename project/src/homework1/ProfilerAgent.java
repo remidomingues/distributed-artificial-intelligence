@@ -479,7 +479,6 @@ public class ProfilerAgent extends Agent {
             return;
         }
         send(requestMessage);
-        System.out.println("sent");
     }
 }
 

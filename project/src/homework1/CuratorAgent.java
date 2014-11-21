@@ -31,8 +31,10 @@ import homework1.model.ArtifactGenre;
 import homework1.model.AuctionDescription;
 import jade.core.AID;
 import jade.core.Agent;
+import jade.core.behaviours.Behaviour;
 import jade.core.behaviours.CyclicBehaviour;
 import jade.core.behaviours.OneShotBehaviour;
+import jade.core.behaviours.ParallelBehaviour;
 import jade.core.behaviours.TickerBehaviour;
 import jade.core.behaviours.WakerBehaviour;
 import jade.lang.acl.ACLMessage;
@@ -65,6 +67,7 @@ public class CuratorAgent extends Agent {
     /** List of agents subscribed to the auction **/
     private Set<String> subscribedAgents = new HashSet<>();
     
+    private ParallelBehaviour parallelBehaviour;
     private Artifact auctionedArtifact = null;
     private double currentAuctionPrice;
     private double currentAuctionReserve;
@@ -99,6 +102,10 @@ public class CuratorAgent extends Agent {
         }
     }
     
+    protected void addSubBehaviour(Behaviour b) {
+        this.parallelBehaviour.addSubBehaviour(b);
+    }
+    
     protected void setup() {
         Object[] args = getArguments();
         
@@ -108,10 +115,11 @@ public class CuratorAgent extends Agent {
         myLogger.log(Logger.INFO, "Auction behaviour: " + this.auctionBehaviour);
         
         if(this.auctionBehaviour) {
+            this.parallelBehaviour = new ParallelBehaviour(this, ParallelBehaviour.WHEN_ALL);
             // Starting auction messages' handling
-            this.addBehaviour(new CuratorAuctioningBehaviour(this));
+            this.parallelBehaviour.addSubBehaviour(new CuratorAuctioningBehaviour(this));
             // Starting a new auction
-            this.addBehaviour(new CuratorStartAuction(this));
+            this.parallelBehaviour.addSubBehaviour(new CuratorStartAuction(this));
         } else {
             this.addBehaviour(new CuratorRequestsHandlingBehaviour(this));
         }
@@ -128,7 +136,6 @@ public class CuratorAgent extends Agent {
         return 50.0 + 10.0 * age + 60.0;
     }
     
-    
     /**
      * Return a collection of artifacts
      * @return A collection of artifacts
@@ -144,7 +151,6 @@ public class CuratorAgent extends Agent {
     public Set<String> getSubscribedAgents() {
         return this.subscribedAgents;
     }
-
 
     public Artifact getAuctionedArtifact() {
         return auctionedArtifact;
@@ -169,7 +175,6 @@ public class CuratorAgent extends Agent {
     public void setCurrentAuctionReserve(double currentAuctionReserve) {
         this.currentAuctionReserve = currentAuctionReserve;
     }
-
 
     /**
      * Interacts with the profiling agents bidding on an auction
@@ -207,11 +212,13 @@ public class CuratorAgent extends Agent {
             Artifact currentAuction = curatorAgent.getAuctionedArtifact();
             if (agentMessage.getType().equals("auction-registration") && msg.getPerformative() == ACLMessage.REQUEST) {
                 curatorAgent.getSubscribedAgents().add(msg.getSender().getName());
+                myLogger.log(Logger.INFO, "Auction registration received: " + msg.getSender().getName());
             } else if (agentMessage.getType().equals("auction-accept") && msg.getPerformative() == ACLMessage.PROPOSE) {
                 // Checking that the proposal matches the current price
                 AuctionDescription auctionDescription = (AuctionDescription) agentMessage.getContent();
 
                 if (currentAuction == null || auctionDescription.getPrice() != curatorAgent.getCurrentAuctionPrice()) {
+                    myLogger.log(Logger.INFO, "Auction proposal received for a terminated auction from " + msg.getSender().getName());
                     // The price is different from the current bidding price or there's no auction anymore
                     ACLMessage reply = msg.createReply();
                     reply.setPerformative(ACLMessage.REJECT_PROPOSAL);
@@ -259,7 +266,7 @@ public class CuratorAgent extends Agent {
      * Starts an auction on one of the curator's artifacts
      */
     private class CuratorStartAuction extends WakerBehaviour {
-        static final long STARTING_DELAY = 2000;
+        static final long STARTING_DELAY = 3000;
         
         /**
          * Constructor
@@ -274,6 +281,8 @@ public class CuratorAgent extends Agent {
 
             // Picking the auctionned artifact
             Artifact auctionnedArtifact = (Artifact) CuratorAgent.pickRandom(curatorAgent.getArtifacts().toArray(), new Random());
+            
+            myLogger.log(Logger.INFO, "Starting auction for artifact " + auctionnedArtifact.getId());
 
             // Estimating the initial auction price and it's reserve (minimum price)
             curatorAgent.setAuctionedArtifact(auctionnedArtifact);
@@ -297,7 +306,7 @@ public class CuratorAgent extends Agent {
             // Starting a ticker behaviour that reduces the price of the
             // auctionned object multiple times unless the auction finishes
             // or the minimum price is reached   
-            curatorAgent.addBehaviour(new CuratorAuctionRound(curatorAgent));
+            curatorAgent.addSubBehaviour(new CuratorAuctionRound(curatorAgent));
         }
     }
 
@@ -326,7 +335,7 @@ public class CuratorAgent extends Agent {
             // If the current auction have finished...
             if (curatorAgent.getAuctionedArtifact() == null) {
                 // Launching a new auction
-                curatorAgent.addBehaviour(new CuratorStartAuction(curatorAgent));
+                curatorAgent.addSubBehaviour(new CuratorStartAuction(curatorAgent));
                 this.done();
                 return;
             }
