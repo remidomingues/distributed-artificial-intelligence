@@ -120,6 +120,7 @@ public class CuratorAgent extends Agent {
             this.parallelBehaviour.addSubBehaviour(new CuratorAuctioningBehaviour(this));
             // Starting a new auction
             this.parallelBehaviour.addSubBehaviour(new CuratorStartAuction(this));
+            this.addBehaviour(this.parallelBehaviour);
         } else {
             this.addBehaviour(new CuratorRequestsHandlingBehaviour(this));
         }

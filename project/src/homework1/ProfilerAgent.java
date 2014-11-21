@@ -467,6 +467,11 @@ public class ProfilerAgent extends Agent {
     
     //HW2
     private void auctionRegistration() {
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException ex) {
+            java.util.logging.Logger.getLogger(ProfilerAgent.class.getName()).log(Level.SEVERE, null, ex);
+        }
         ACLMessage requestMessage = new ACLMessage(ACLMessage.REQUEST);
         requestMessage.addReceiver(new AID("curator", false));
 
@@ -479,6 +484,7 @@ public class ProfilerAgent extends Agent {
             return;
         }
         send(requestMessage);
+        System.out.println("sent");
     }
 }
 
