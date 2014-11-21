@@ -67,7 +67,6 @@ public class CuratorAgent extends Agent {
     /** List of agents subscribed to the auction **/
     private Set<String> subscribedAgents = new HashSet<>();
     
-    private ParallelBehaviour parallelBehaviour;
     private Artifact auctionedArtifact = null;
     private double currentAuctionPrice;
     private double currentAuctionReserve;
@@ -102,10 +101,6 @@ public class CuratorAgent extends Agent {
         }
     }
     
-    protected void addSubBehaviour(Behaviour b) {
-        this.parallelBehaviour.addSubBehaviour(b);
-    }
-    
     protected void setup() {
         Object[] args = getArguments();
         
@@ -115,12 +110,10 @@ public class CuratorAgent extends Agent {
         myLogger.log(Logger.INFO, "Auction behaviour: " + this.auctionBehaviour);
         
         if(this.auctionBehaviour) {
-            this.parallelBehaviour = new ParallelBehaviour(this, ParallelBehaviour.WHEN_ALL);
             // Starting auction messages' handling
-            this.parallelBehaviour.addSubBehaviour(new CuratorAuctioningBehaviour(this));
+            this.addBehaviour(new CuratorAuctioningBehaviour(this));
             // Starting a new auction
-            this.parallelBehaviour.addSubBehaviour(new CuratorStartAuction(this));
-            this.addBehaviour(this.parallelBehaviour);
+            this.addBehaviour(new CuratorStartAuction(this));
         } else {
             this.addBehaviour(new CuratorRequestsHandlingBehaviour(this));
         }
@@ -192,7 +185,7 @@ public class CuratorAgent extends Agent {
         @Override
         public void action() {
             CuratorAgent curatorAgent = (CuratorAgent) myAgent;
-            ACLMessage  msg = myAgent.blockingReceive();
+            ACLMessage  msg = myAgent.blockingReceive(10);
 
             if (msg == null){
                 block();
@@ -213,7 +206,6 @@ public class CuratorAgent extends Agent {
             Artifact currentAuction = curatorAgent.getAuctionedArtifact();
             if (agentMessage.getType().equals("auction-registration") && msg.getPerformative() == ACLMessage.REQUEST) {
                 curatorAgent.getSubscribedAgents().add(msg.getSender().getName());
-                myLogger.log(Logger.INFO, "Auction registration received: " + msg.getSender().getName());
             } else if (agentMessage.getType().equals("auction-accept") && msg.getPerformative() == ACLMessage.PROPOSE) {
                 // Checking that the proposal matches the current price
                 AuctionDescription auctionDescription = (AuctionDescription) agentMessage.getContent();
@@ -307,7 +299,7 @@ public class CuratorAgent extends Agent {
             // Starting a ticker behaviour that reduces the price of the
             // auctionned object multiple times unless the auction finishes
             // or the minimum price is reached   
-            curatorAgent.addSubBehaviour(new CuratorAuctionRound(curatorAgent));
+            curatorAgent.addBehaviour(new CuratorAuctionRound(curatorAgent));
         }
     }
 
@@ -336,7 +328,7 @@ public class CuratorAgent extends Agent {
             // If the current auction have finished...
             if (curatorAgent.getAuctionedArtifact() == null) {
                 // Launching a new auction
-                curatorAgent.addSubBehaviour(new CuratorStartAuction(curatorAgent));
+                curatorAgent.addBehaviour(new CuratorStartAuction(curatorAgent));
                 this.done();
                 return;
             }
