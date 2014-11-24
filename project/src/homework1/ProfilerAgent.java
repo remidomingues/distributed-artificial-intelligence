@@ -328,8 +328,10 @@ public class ProfilerAgent extends Agent {
     protected Double estimatePrice(Artifact artifact) {
         Calendar today = Calendar.getInstance();  
         int age = today.get(Calendar.YEAR) - artifact.getCreatedAt().get(Calendar.YEAR);
-        double interestValue = (this.user.getInterests().contains(artifact.getCategory())) ? 100 : 0;
-        return 50.0 + 10.0 * age + 20.0 * Math.random() + interestValue;
+        double interestValue = (this.user.getInterests().contains(artifact.getCategory())) ? 0 : age*0.2;
+        double baseEstimate = 50.0 + 10.0 * age;
+        baseEstimate = (baseEstimate * 0.9) + (baseEstimate * 0.2 * Math.random());
+        return baseEstimate - interestValue;
     }
 
     protected void setup() {
