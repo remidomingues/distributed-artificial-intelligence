@@ -262,7 +262,7 @@ public class ProfilerAgent extends Agent {
                             int artifactID = ((AuctionDescription)message.getContent()).getArtifactID();
                             double price = ((AuctionDescription)message.getContent()).getPrice();
                             
-                            myLogger.log(Logger.INFO, "Agent {0} - Auction proposal for artifact {1}: {2} ; Wanted price {3}", new Object[]{getLocalName(), artifactID, price, currentAuctions.get(artifactID)});
+                            myLogger.log(Logger.INFO, "Agent {0} - Artifact {1} current price: {2} ; Wanted price {3}", new Object[]{getLocalName(), artifactID, price, currentAuctions.get(artifactID)});
 
                             if(price < currentAuctions.get(artifactID)) {
                                 ACLMessage reply = msg.createReply();
@@ -297,7 +297,7 @@ public class ProfilerAgent extends Agent {
 
                 } else if(msg.getPerformative() == ACLMessage.ACCEPT_PROPOSAL) {
                     try {
-                        myLogger.log(Logger.INFO, "Agent {0} - Proposal accepted for artifact {1}!",
+                        myLogger.log(Logger.INFO, "\nAgent {0} - Proposal accepted for artifact {1}!\n",
                                 new Object[] {getLocalName(), ((AuctionDescription)((AgentMessage)msg.getContentObject()).getContent()).getArtifactID()});
                     } catch (UnreadableException ex) {
                         java.util.logging.Logger.getLogger(ProfilerAgent.class.getName()).log(Level.SEVERE, null, ex);
