@@ -19,45 +19,56 @@ import jade.wrapper.StaleProxyException;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.logging.Level;
 
 
 public class QueenAgent extends Agent {
     private Logger myLogger = Logger.getJADELogger(getClass().getName());
     private List<AID> previousQueens = new LinkedList<AID>();
 
+    private int mNumQueens;
+    private int mQueenIndex;
+    private AID mPreviousQueen;
+    
     public QueenAgent() {
-        myLogger.log(Logger.INFO, "Profile Agent initialized");
     }
     
     
     public Logger getLogger() {
         return myLogger;
     }
+
+    public int getNumQueens() {
+        return mNumQueens;
+    }
+
+    public int getQueenIndex() {
+        return mQueenIndex;
+    }
     
-
     private class PositionNextQueen extends OneShotBehaviour {
-        private int mNumQueens;
-        private int mQueenIndex;
 
-        public PositionNextQueen(Agent a, int numQueens, int queenIndex) {
+        public PositionNextQueen(Agent a) {
             super(a);
-            mNumQueens = numQueens;
-            mQueenIndex = queenIndex;
         }
 
         @Override
         public void action() {
-            QueenAgent profileAgent = (QueenAgent) myAgent;            
+            QueenAgent qAgent = (QueenAgent) myAgent;     
+            
+            // Pick a valid position
+            // ! TODO !
 
-            // Create a queen and asking it to position itself in a valid position
+            // If this is the last queen, finish
+            if (qAgent.getQueenIndex() >= qAgent.getNumQueens() - 1) {
+                return;
+            }
+            
+            // Create a new queen and asking it to position itself in a valid position
             ContainerController cc = getContainerController();
-            int newQueenIndex = mQueenIndex + 1;
+            int newQueenIndex = qAgent.getQueenIndex() + 1;
             AgentController ac;
             try {
-                ac = cc.createNewAgent("queen" + newQueenIndex,
-                        "nqueens.QueenAgent",
-                        new Object[]{mNumQueens, newQueenIndex});
+                ac = cc.createNewAgent("queen" + newQueenIndex, "nqueens.QueenAgent", new Object[]{newQueenIndex, qAgent.getAID()});
                 ac.start();
             } catch (StaleProxyException ex) {
                 myLogger.log(Logger.SEVERE, null, ex);
@@ -83,15 +94,22 @@ public class QueenAgent extends Agent {
         // Getting arguments
         Object[] args = getArguments();
         
-        int numQueens = 8;
-        int queenIndex = 1;
-        if (args.length >= 2) {
-            numQueens = (Integer) args[0];
-            queenIndex = (Integer) args[1];
-        }
-
-        addBehaviour(new PositionNextQueen(this, numQueens, queenIndex));
+        mNumQueens = 8;
+        mQueenIndex = 0;
+        mPreviousQueen = null;
         
+        if (args != null) {
+            if (args.length >= 1) {
+                mQueenIndex = (Integer) args[0];
+            }
+            if (args.length >= 2) {
+                mPreviousQueen = (AID) args[1];
+            }
+        }
+        
+        myLogger.log(Logger.INFO, "Queen Agent initialized with: " + mQueenIndex + "/" + mNumQueens);
+
+        addBehaviour(new PositionNextQueen(this));       
     }
 }
 
