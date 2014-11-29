@@ -166,13 +166,12 @@ public class CuratorAgent extends MobileAgent {
                     AgentContainer ac = ContainerManager.createContainer(this);
                     ac.createNewAgent("MuseoGalileo", "homework1.ProfilerAgent", new Object[]{"parallel-auction"});
                     ac.getAgent("MuseoGalileo").start();
-                    
+                    CuratorAgent.agentContainers.add(ac);
+                    /*
                     AgentContainer ac2 = ContainerManager.createContainer(this);
                     ac2.createNewAgent("HeritageMalta", "homework1.ProfilerAgent", new Object[]{"parallel-auction"});
                     ac2.getAgent("HeritageMalta").start();
-                    
-                    CuratorAgent.agentContainers.add(ac);
-                    CuratorAgent.agentContainers.add(ac2);
+                    CuratorAgent.agentContainers.add(ac2);*/
                 } catch (StaleProxyException ex) {
                     java.util.logging.Logger.getLogger(CuratorAgent.class.getName()).log(Level.SEVERE, null, ex);
                 } catch (ControllerException ex) {
@@ -300,7 +299,7 @@ public class CuratorAgent extends MobileAgent {
             Artifact currentAuction = curatorAgent.getAuctionedArtifact();
             if (agentMessage.getType().equals("auction-registration") && msg.getPerformative() == ACLMessage.REQUEST) {
                 curatorAgent.getSubscribedAgents().add(msg.getSender());
-                if(curatorAgent.subscribedAgents.size() >= 2) {
+                if(curatorAgent.subscribedAgents.size() >= CuratorAgent.agentContainers.size()) {
                     startAuction();
                 }
             } else if (agentMessage.getType().equals("auction-accept") && msg.getPerformative() == ACLMessage.PROPOSE) {

@@ -298,7 +298,7 @@ public class ProfilerAgent extends MobileAgent {
                         } else if(message.getType().equals("auction-price")){
                             int artifactID = ((AuctionDescription)message.getContent()).getArtifactID();
                             double price = ((AuctionDescription)message.getContent()).getPrice();
-                            
+               
                             myLogger.log(Logger.INFO, "<AUCTION> Agent {0} - Auction proposal from <{4}> for artifact {1}: {2} ; Wanted price {3}",
                                     new Object[]{getLocalName(), artifactID, price, currentAuctions.get(artifactID), msg.getSender().getLocalName()});
 
@@ -355,12 +355,14 @@ public class ProfilerAgent extends MobileAgent {
 
                 } else if(msg.getPerformative() == ACLMessage.ACCEPT_PROPOSAL) {
                     try {
+
                         AuctionDescription auctionDescription = ((AuctionDescription)((AgentMessage)msg.getContentObject()).getContent());
                         myLogger.log(Logger.INFO, "<AUCTION> Agent {0} - Proposal accepted for artifact {1}!",
                                 new Object[] {getLocalName(), auctionDescription.getArtifactID()});
                         ((ProfilerAgent)myAgent).auctionResult = new AuctionResult(auctionDescription.getArtifactID(), myAgent.getLocalName(), auctionDescription.getPrice());
                         results.add(((ProfilerAgent)myAgent).auctionResult);
                         System.out.println(getLocalName() + ": Auction WON for artifact " + auctionResult.artifactID + "(price=" + auctionResult.price + ")");
+
                     } catch (UnreadableException ex) {
                         java.util.logging.Logger.getLogger(ProfilerAgent.class.getName()).log(Level.SEVERE, null, ex);
                     }
