@@ -121,7 +121,8 @@ public class QueenAgent extends Agent {
                         sendMessage(previous, "solution-found", msg.getContent());                            
                     } else {
                         // if this is the first queen, we announce the solution
-                        myLogger.log(Logger.INFO, "A solution was found: " + msg.getContent().toString());
+                        LinkedList<Position> solution = (LinkedList<Position>) msg.getContent();
+                        myLogger.log(Logger.INFO, "A solution was found:\n" + qAgent.solutionToString(solution));
                     }
                 } else if (msg.getType().equals("no-possible-solution")) {
                     // If no solution was found by the new queen, we remove the current x and move to a new one
@@ -151,11 +152,26 @@ public class QueenAgent extends Agent {
         send(requestMessage);
     }
     
+    public String solutionToString(List<Position> solution) {
+        StringBuilder sb = new StringBuilder();
+        for (Position p : solution) {
+            for (int x = 0; x < mNumQueens; x++) {
+                if (p.getX() == x) {
+                    sb.append("X ");
+                } else {
+                    sb.append(". ");
+                }
+            }
+            sb.append("\n");
+        }
+        return sb.toString();
+    }
+    
     protected void setup() {
         // Getting arguments
         Object[] args = getArguments();
         
-        mNumQueens = 8;
+        mNumQueens = 4;
         mQueenIndex = 0;
         mPreviousQueen = null;
         
