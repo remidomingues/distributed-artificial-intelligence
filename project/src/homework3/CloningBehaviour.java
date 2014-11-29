@@ -5,6 +5,7 @@
  */
 package homework3;
 
+import homework1.CuratorAgent;
 import jade.content.ContentElement;
 import jade.content.lang.Codec;
 import jade.content.onto.OntologyException;
@@ -16,6 +17,7 @@ import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 import java.util.logging.Level;
 import jade.util.Logger;
+import jade.wrapper.AgentContainer;
 
 /**
  *
@@ -60,6 +62,12 @@ public class CloningBehaviour extends OneShotBehaviour {
                 String cloneName = "clone" + i + "#" + myAgent.getLocalName();
                 System.out.println("Cloning agent <" + myAgent.getLocalName() + "> into clone <" + cloneName + "> and sending clone to <" + loc.getName() + ">");
                 myAgent.doClone(loc, cloneName);
+                /*
+                for(AgentContainer ac : CuratorAgent.agentContainers) {
+                    try {
+                        ac.getAgent(cloneName).start();
+                    } catch(Exception e) {}
+                }*/
                 ++i;
             }
         }

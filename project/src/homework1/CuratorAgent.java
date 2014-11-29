@@ -69,6 +69,7 @@ import java.util.logging.Level;
  * @author Rémi Domingues <remidomingues@live.fr>
  */
 public class CuratorAgent extends MobileAgent {
+    public static List<AgentContainer> agentContainers = new LinkedList<AgentContainer>();
     /** Logger */
     protected Logger myLogger = Logger.getJADELogger(getClass().getName());
     /** Artifacts data */
@@ -169,6 +170,9 @@ public class CuratorAgent extends MobileAgent {
                     AgentContainer ac2 = ContainerManager.createContainer(this);
                     ac2.createNewAgent("HeritageMalta", "homework1.ProfilerAgent", new Object[]{"parallel-auction"});
                     ac2.getAgent("HeritageMalta").start();
+                    
+                    CuratorAgent.agentContainers.add(ac);
+                    CuratorAgent.agentContainers.add(ac2);
                 } catch (StaleProxyException ex) {
                     java.util.logging.Logger.getLogger(CuratorAgent.class.getName()).log(Level.SEVERE, null, ex);
                 } catch (ControllerException ex) {
