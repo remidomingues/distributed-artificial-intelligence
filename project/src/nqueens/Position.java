@@ -30,4 +30,8 @@ public class Position implements Serializable {
     public String toString() {
         return "(" + mX + ", " + mY + ")";
     }
+    
+    public boolean equals(Position p) {
+        return mX == p.getX() && mY == p.getY();
+    }
 }

@@ -13,12 +13,11 @@ import jade.wrapper.StaleProxyException;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.logging.Level;
-
 
 public class QueenAgent extends Agent {
     private Logger myLogger = Logger.getJADELogger(getClass().getName());
     private List<Position> mPositionnedQueens = new LinkedList<>();
+    private List<List<Position>> mSolutionsFound = new LinkedList<>();
 
     private int mNumQueens;
     private int mQueenIndex;
@@ -63,7 +62,9 @@ public class QueenAgent extends Agent {
             for (int x = 0; x < qAgent.getNumQueens(); x++) {
                 Boolean vulnerable = false;
                 for (Position p : mPositionnedQueens) {
-                    if (x == p.getX() || y == p.getY() ||  (x - p.getX()) == (y - p.getY())) {
+                    Boolean diag1 = (x - p.getX()) == (y - p.getY());
+                    Boolean diag2 = (x - p.getX()) == -(y - p.getY());
+                    if (x == p.getX() || y == p.getY() || diag1 || diag2 ) {
                         vulnerable = true;
                         break;
                     }
@@ -74,38 +75,35 @@ public class QueenAgent extends Agent {
                 Position pickedPosition = new Position(x, y);
                 mPositionnedQueens.add(pickedPosition);
 
-                myLogger.log(Logger.INFO, qAgent.getLocalName() + " chose position " + pickedPosition.toString());
-                myLogger.log(Logger.INFO, mPositionnedQueens.toString());
-
-
                 // If this is the last queen, we've found a solution.
-                // TODO : send a message to the previous queen saying a solution was found
-                // the message should be forwarded to all the other previous queens...
                 if (qAgent.getQueenIndex() >= qAgent.getNumQueens() - 1) {
-                    sendMessage(mPreviousQueen, "solution-found", mPositionnedQueens);
-                    qAgent.doDelete();
-                    try {
-                        // Waiting for the agent to be deleted
-                        Thread.sleep(10);
-                    } catch (InterruptedException ex) {
-                        myLogger.log(Logger.SEVERE, null, ex);
+                    // If the solution isn't already known, we show it and add it to the list of known solutions
+                    if (!qAgent.solutionKnown(mPositionnedQueens)) {
+                        myLogger.log(Logger.INFO, "@A solution was found:\n" + qAgent.solutionToString(mPositionnedQueens));
+                        mSolutionsFound.add(new LinkedList<>(mPositionnedQueens));
                     }
-                    return;
+
+                    // We try other positions to see if there are other solutions
+                    mPositionnedQueens.remove(mPositionnedQueens.size() - 1);
+                    continue;
                 }
 
                 // Otherwise, create a new queen and asking it to position itself in a valid position
                 ContainerController cc = getContainerController();
                 int newQueenIndex = qAgent.getQueenIndex() + 1;
-                AgentController ac;
-                try {
-                    ac = cc.createNewAgent("queen" + newQueenIndex, "nqueens.QueenAgent", new Object[]{newQueenIndex, qAgent.getAID(), mPositionnedQueens});
-                    ac.start();
-                } catch (StaleProxyException ex) {
-                    myLogger.log(Logger.SEVERE, null, ex);
-                    return;
+                AgentController ac = null;
+                String name = "queen" + newQueenIndex;
+                while (ac == null) {
+                    try {
+                        ac = cc.createNewAgent(name, "nqueens.QueenAgent", new Object[]{newQueenIndex, qAgent.getAID(), mPositionnedQueens, mSolutionsFound});
+                        ac.start();
+                    } catch (StaleProxyException ex) {
+                        //myLogger.log(Logger.SEVERE, null, ex);
+                        name += "-bis";
+                    }
                 }
 
-                // Wait for an answer (solution found, or no possible solution)
+                // Wait for an answer (== no possible solution)
                 ACLMessage response = qAgent.blockingReceive();
                 AgentMessage msg;
                 try {
@@ -114,28 +112,29 @@ public class QueenAgent extends Agent {
                     myLogger.log(Logger.SEVERE, null, ex);
                     return;
                 }
-                // If a solution found, we forward it to the previous queen (if any)
-                if (msg.getType().equals("solution-found")) {
-                    AID previous = qAgent.getPreviousQueen();
-                    if (previous != null) {
-                        sendMessage(previous, "solution-found", msg.getContent());                            
-                    } else {
-                        // if this is the first queen, we announce the solution
-                        LinkedList<Position> solution = (LinkedList<Position>) msg.getContent();
-                        myLogger.log(Logger.INFO, "A solution was found:\n" + qAgent.solutionToString(solution));
-                    }
-                } else if (msg.getType().equals("no-possible-solution")) {
-                    // If no solution was found by the new queen, we remove the current x and move to a new one
+                
+                if (msg.getType().equals("no-possible-solution")) {
+                    // The new queen finished experimenting => we updated the list of solutions
+                    mSolutionsFound = (List<List<Position>>) msg.getContent();
                     mPositionnedQueens.remove(mPositionnedQueens.size() -1);
+                    continue;
                 } else {
                     myLogger.log(Logger.SEVERE, "Unexpected msg type: " + msg.getType());
                     return;
                 }
             }
             
-            // If we got out of this loop == no possible solution was found. We tell that to the previous queen... and suicide.
-            sendMessage(qAgent.getPreviousQueen(), "no-possible-solution", null);
-            qAgent.doDelete();
+            // If we got out of this loop == finished looking for solutions.
+            // We tell that to the previous queen, giving the updated solutions ... and suicide
+            if (qAgent.getQueenIndex() == 0) {
+                myLogger.log(Logger.INFO, "FINISHED, solutions found: " + mSolutionsFound.size());
+                for (List<Position> solution : mSolutionsFound) {
+                    //myLogger.log(Logger.INFO,"\n" + solutionToString(solution) + "=================");
+                }
+            } else {
+                sendMessage(qAgent.getPreviousQueen(), "no-possible-solution", mSolutionsFound);
+            }
+            qAgent.suicide();
         }
     } // END of inner class PositionNextQueen
     
@@ -167,6 +166,33 @@ public class QueenAgent extends Agent {
         return sb.toString();
     }
     
+    public Boolean solutionKnown(List<Position> solution) {
+        for (List<Position> s : mSolutionsFound) {
+            Boolean known = true;
+            for (int i = 0; i < mNumQueens; i++) {
+                if (!s.get(i).equals(solution.get(i))) {
+                    known = false;
+                    break;
+                }
+            }
+            if (known) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+    
+    public void suicide() {
+        doDelete();
+        try {
+            // Waiting for the agent to be deleted
+            Thread.sleep(100);
+        } catch (InterruptedException ex) {
+            myLogger.log(Logger.SEVERE, null, ex);
+        }
+    }
+    
     protected void setup() {
         // Getting arguments
         Object[] args = getArguments();
@@ -185,11 +211,13 @@ public class QueenAgent extends Agent {
             if (args.length >= 3) {
                 mPositionnedQueens = (LinkedList<Position>) args[2];
             }
+            if (args.length >= 4) {
+                mSolutionsFound = (List<List<Position>>) args[3];
+            }
         }
         
-        myLogger.log(Logger.INFO, "Queen Agent initialized with: " + mQueenIndex + "/" + mNumQueens);
-
-        addBehaviour(new PositionNextQueen(this));       
+        //myLogger.log(Logger.INFO, "Queen Agent initialized with: " + mQueenIndex + "/" + mNumQueens);
+        addBehaviour(new PositionNextQueen(this));        
     }
 }
 
